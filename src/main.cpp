@@ -71,6 +71,10 @@ int main() {
   sf::Vector2f panStartOrigin;
   sf::Vector2f panStartMouse;
 
+  bool isDraggingOrigin = false;
+  sf::Vector2f dragOriginStartOriginScreen;
+  sf::Vector2f dragOriginStartMouseScreen;
+
   sf::Clock clickClock;
   bool wasClicked = false;
   sf::Vector2f createStartPos;
@@ -166,6 +170,8 @@ int main() {
           currentTool = ui::Tool::Rhombus;
         else if (event.key.code == sf::Keyboard::Z)
           currentTool = ui::Tool::Trapezoid;
+        else if (event.key.code == sf::Keyboard::O)
+          currentTool = ui::Tool::Origin;
         else if (event.key.code == sf::Keyboard::Escape) {
           if (isNodeEditMode) {
             isNodeEditMode = false;
@@ -214,8 +220,32 @@ int main() {
                 sf::Vector2f(event.mouseButton.x, event.mouseButton.y);
             panStartOrigin = viewport.worldOrigin;
           } else if (event.mouseButton.button == sf::Mouse::Left) {
-            sf::Vector2f mousePos = viewport.screenToWorld(
-                sf::Vector2f(event.mouseButton.x, event.mouseButton.y));
+            sf::Vector2f mousePosScreen(event.mouseButton.x,
+                                        event.mouseButton.y);
+            sf::Vector2f mousePos = viewport.screenToWorld(mousePosScreen);
+
+            if (currentTool == ui::Tool::Origin) {
+              // Click to set new origin
+              sf::Vector2f oldOriginScreen = viewport.worldOrigin;
+              viewport.worldOrigin = mousePosScreen;
+              sf::Vector2f anchorShift =
+                  (oldOriginScreen - mousePosScreen) / viewport.zoom;
+              for (auto &fig : scene.getFigures()) {
+                fig->anchor += anchorShift;
+              }
+              currentTool = ui::Tool::Select;
+              continue;
+            }
+
+            // Check if clicking origin marker
+            if (showOriginAxes &&
+                std::hypot(mousePosScreen.x - viewport.worldOrigin.x,
+                           mousePosScreen.y - viewport.worldOrigin.y) <= 15.f) {
+              isDraggingOrigin = true;
+              dragOriginStartMouseScreen = mousePosScreen;
+              dragOriginStartOriginScreen = viewport.worldOrigin;
+              continue;
+            }
 
             if (currentTool == ui::Tool::Select) {
               bool doubleClicked = false;
@@ -323,6 +353,9 @@ int main() {
             isPanning = false;
           }
           if (event.mouseButton.button == sf::Mouse::Left) {
+            if (isDraggingOrigin) {
+              isDraggingOrigin = false;
+            }
             if (draggingScaleHandle != ScaleHandle::None) {
               draggingScaleHandle = ScaleHandle::None;
             }
@@ -379,7 +412,21 @@ int main() {
           sf::Vector2f mousePos = viewport.screenToWorld(
               sf::Vector2f(event.mouseMove.x, event.mouseMove.y));
 
-          if (isPanning) {
+          if (isDraggingOrigin) {
+            sf::Vector2f mousePosScreen(event.mouseMove.x, event.mouseMove.y);
+            sf::Vector2f deltaScreen =
+                mousePosScreen - dragOriginStartMouseScreen;
+            sf::Vector2f newOriginScreen =
+                dragOriginStartOriginScreen + deltaScreen;
+
+            sf::Vector2f oldOriginScreen = viewport.worldOrigin;
+            viewport.worldOrigin = newOriginScreen;
+            sf::Vector2f anchorShift =
+                (oldOriginScreen - newOriginScreen) / viewport.zoom;
+            for (auto &fig : scene.getFigures()) {
+              fig->anchor += anchorShift;
+            }
+          } else if (isPanning) {
             sf::Vector2f currentMouse(event.mouseMove.x, event.mouseMove.y);
             sf::Vector2f delta = currentMouse - panStartMouse;
             viewport.worldOrigin = panStartOrigin + delta;
@@ -570,9 +617,18 @@ int main() {
                                      ? draggingScaleHandle
                                      : hoveringScaleHandle;
 
-      if (isPanning || (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) &&
-                        currentTool == ui::Tool::Select)) {
+      if (isDraggingOrigin || isPanning ||
+          (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) &&
+           currentTool == ui::Tool::Select)) {
         window.setMouseCursor(cursorHand);
+      } else if (showOriginAxes &&
+                 std::hypot(sf::Mouse::getPosition(window).x -
+                                viewport.worldOrigin.x,
+                            sf::Mouse::getPosition(window).y -
+                                viewport.worldOrigin.y) <= 15.f) {
+        window.setMouseCursor(cursorHand);
+      } else if (currentTool == ui::Tool::Origin) {
+        window.setMouseCursor(cursorCross);
       } else if (activeHandle != ScaleHandle::None) {
         if (activeHandle == ScaleHandle::TL || activeHandle == ScaleHandle::BR)
           window.setMouseCursor(cursorSizeNWSE);
@@ -693,11 +749,35 @@ int main() {
     if (showOriginAxes) {
       sf::VertexArray originAxes(sf::Lines, 4);
       sf::Color axisColor(100, 100, 100, 150);
-      originAxes[0] = sf::Vertex(sf::Vector2f(-20.f, 0.f), axisColor);
-      originAxes[1] = sf::Vertex(sf::Vector2f(20.f, 0.f), axisColor);
-      originAxes[2] = sf::Vertex(sf::Vector2f(0.f, -20.f), axisColor);
-      originAxes[3] = sf::Vertex(sf::Vector2f(0.f, 20.f), axisColor);
+      sf::Vector2f boundsMin = viewport.screenToWorld(sf::Vector2f(0.f, 0.f));
+      sf::Vector2f boundsMax = viewport.screenToWorld(
+          sf::Vector2f(window.getSize().x, window.getSize().y));
+
+      originAxes[0] = sf::Vertex(sf::Vector2f(boundsMin.x, 0.f), axisColor);
+      originAxes[1] = sf::Vertex(sf::Vector2f(boundsMax.x, 0.f), axisColor);
+      originAxes[2] = sf::Vertex(sf::Vector2f(0.f, boundsMin.y), axisColor);
+      originAxes[3] = sf::Vertex(sf::Vector2f(0.f, boundsMax.y), axisColor);
       window.draw(originAxes);
+    }
+
+    // Always draw Movable Origin Marker at (0,0) World
+    if (showOriginAxes) {
+      float markerScale = 1.f / viewport.zoom;
+      sf::CircleShape circ(6.f * markerScale);
+      circ.setOrigin(6.f * markerScale, 6.f * markerScale);
+      circ.setPosition(0.f, 0.f);
+      circ.setFillColor(sf::Color::Transparent);
+      circ.setOutlineColor(sf::Color(100, 100, 100));
+      circ.setOutlineThickness(1.5f * markerScale);
+      window.draw(circ);
+
+      sf::VertexArray cross(sf::Lines, 4);
+      sf::Color crossCol(100, 100, 100);
+      cross[0] = sf::Vertex(sf::Vector2f(-12.f * markerScale, 0.f), crossCol);
+      cross[1] = sf::Vertex(sf::Vector2f(12.f * markerScale, 0.f), crossCol);
+      cross[2] = sf::Vertex(sf::Vector2f(0.f, -12.f * markerScale), crossCol);
+      cross[3] = sf::Vertex(sf::Vector2f(0.f, 12.f * markerScale), crossCol);
+      window.draw(cross);
     }
 
     scene.drawAll(window);
