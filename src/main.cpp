@@ -85,7 +85,10 @@ int main() {
 
     if (fig) {
       fig->fillColor = sf::Color(150, 150, 150);
-      fig->edges.push_back({2.f, sf::Color::Black});
+      for (auto &edge : fig->edges) {
+        edge.width = 2.f;
+        edge.color = sf::Color::Black;
+      }
     }
     return fig;
   };
