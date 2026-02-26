@@ -4,10 +4,29 @@
 #include "ui/Toolbar.hpp"
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
+#include <cmath>
 #include <imgui-SFML.h>
 #include <imgui.h>
 #include <iostream>
 #include <memory>
+
+void drawAnchorMarker(sf::RenderTarget &target, sf::Vector2f pos) {
+  sf::CircleShape circle(5.f);
+  circle.setFillColor(sf::Color::Transparent);
+  circle.setOutlineColor(sf::Color::White);
+  circle.setOutlineThickness(1.5f);
+  circle.setOrigin(5.f, 5.f);
+  circle.setPosition(pos);
+
+  sf::VertexArray lines(sf::Lines, 4);
+  lines[0] = sf::Vertex(pos - sf::Vector2f(8.f, 0.f), sf::Color::White);
+  lines[1] = sf::Vertex(pos + sf::Vector2f(8.f, 0.f), sf::Color::White);
+  lines[2] = sf::Vertex(pos - sf::Vector2f(0.f, 8.f), sf::Color::White);
+  lines[3] = sf::Vertex(pos + sf::Vector2f(0.f, 8.f), sf::Color::White);
+
+  target.draw(circle);
+  target.draw(lines);
+}
 
 int main() {
   sf::RenderWindow window(sf::VideoMode(1280, 720), "GraphEditor");
@@ -27,8 +46,14 @@ int main() {
   ui::Tool currentTool = ui::Tool::Select;
 
   bool isDragging = false;
+  bool isDraggingAnchor = false;
+  bool isNodeEditMode = false;
+  int draggingVertexIndex = -1;
   bool isCreating = false;
   sf::Vector2f dragOffset;
+
+  sf::Clock clickClock;
+  bool wasClicked = false;
   sf::Vector2f createStartPos;
 
   bool showGrid = false;
@@ -91,9 +116,17 @@ int main() {
         else if (event.key.code == sf::Keyboard::Z)
           currentTool = ui::Tool::Trapezoid;
         else if (event.key.code == sf::Keyboard::Escape) {
-          scene.setSelectedFigure(nullptr);
-          if (isCreating)
-            isCreating = false;
+          if (isNodeEditMode) {
+            isNodeEditMode = false;
+          } else {
+            scene.setSelectedFigure(nullptr);
+            if (isCreating)
+              isCreating = false;
+          }
+        } else if (event.key.code == sf::Keyboard::N) {
+          if (scene.getSelectedFigure()) {
+            isNodeEditMode = !isNodeEditMode;
+          }
         } else if (event.key.code == sf::Keyboard::G) {
           showGrid = !showGrid;
         } else if (event.key.code == sf::Keyboard::Delete ||
@@ -113,11 +146,59 @@ int main() {
               window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
           if (currentTool == ui::Tool::Select) {
-            core::Figure *hit = scene.hitTest(mousePos);
-            scene.setSelectedFigure(hit);
-            if (hit) {
-              isDragging = true;
-              dragOffset = mousePos - hit->anchor;
+            bool doubleClicked = false;
+            if (wasClicked && clickClock.getElapsedTime().asSeconds() < 0.3f) {
+              doubleClicked = true;
+              wasClicked = false;
+            } else {
+              wasClicked = true;
+              clickClock.restart();
+            }
+
+            bool altPressed = sf::Keyboard::isKeyPressed(sf::Keyboard::LAlt) ||
+                              sf::Keyboard::isKeyPressed(sf::Keyboard::RAlt);
+
+            core::Figure *selFig = scene.getSelectedFigure();
+            bool hitAnchor = false;
+            int hoveredVertex = -1;
+
+            if (selFig) {
+              float dist = std::hypot(mousePos.x - selFig->anchor.x,
+                                      mousePos.y - selFig->anchor.y);
+              if (dist <= 10.f) {
+                hitAnchor = true;
+              }
+
+              if (isNodeEditMode) {
+                const auto &verts = selFig->getVertices();
+                for (size_t i = 0; i < verts.size(); ++i) {
+                  sf::Vector2f absV = selFig->anchor + verts[i];
+                  if (std::abs(mousePos.x - absV.x) <= 6.f &&
+                      std::abs(mousePos.y - absV.y) <= 6.f) {
+                    hoveredVertex = i;
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (isNodeEditMode && hoveredVertex != -1) {
+              draggingVertexIndex = hoveredVertex;
+            } else if (hitAnchor && altPressed && selFig) {
+              isDraggingAnchor = true;
+              dragOffset = mousePos - selFig->anchor;
+            } else {
+              core::Figure *hit = scene.hitTest(mousePos);
+              scene.setSelectedFigure(hit);
+              if (selFig != hit)
+                isNodeEditMode = false;
+
+              if (hit && doubleClicked) {
+                isNodeEditMode = true;
+              } else if (hit) {
+                isDragging = true;
+                dragOffset = mousePos - hit->anchor;
+              }
             }
           } else {
             isCreating = true;
@@ -128,6 +209,12 @@ int main() {
                    event.mouseButton.button == sf::Mouse::Left) {
           if (isDragging) {
             isDragging = false;
+          }
+          if (isDraggingAnchor) {
+            isDraggingAnchor = false;
+          }
+          if (draggingVertexIndex != -1) {
+            draggingVertexIndex = -1;
           }
           if (isCreating) {
             isCreating = false;
@@ -160,7 +247,23 @@ int main() {
                 ui::Tool::Select; // Automatically switch back to select
           }
         } else if (event.type == sf::Event::MouseMoved) {
-          if (isDragging && scene.getSelectedFigure()) {
+          if (draggingVertexIndex != -1 && scene.getSelectedFigure()) {
+            sf::Vector2f mousePos =
+                window.mapPixelToCoords(sf::Mouse::getPosition(window));
+            auto &verts = scene.getSelectedFigure()->getVerticesMutable();
+            verts[draggingVertexIndex] =
+                mousePos - scene.getSelectedFigure()->anchor;
+          } else if (isDraggingAnchor && scene.getSelectedFigure()) {
+            sf::Vector2f mousePos =
+                window.mapPixelToCoords(sf::Mouse::getPosition(window));
+            sf::Vector2f newAnchor = mousePos - dragOffset;
+            sf::Vector2f delta = newAnchor - scene.getSelectedFigure()->anchor;
+
+            scene.getSelectedFigure()->anchor = newAnchor;
+            for (auto &v : scene.getSelectedFigure()->getVerticesMutable()) {
+              v -= delta;
+            }
+          } else if (isDragging && scene.getSelectedFigure()) {
             sf::Vector2f mousePos =
                 window.mapPixelToCoords(sf::Mouse::getPosition(window));
             scene.getSelectedFigure()->anchor = mousePos - dragOffset;
@@ -214,6 +317,24 @@ int main() {
     }
 
     scene.drawAll(window);
+
+    // Draw Anchor Marker if figure is selected
+    if (scene.getSelectedFigure()) {
+      drawAnchorMarker(window, scene.getSelectedFigure()->anchor);
+
+      if (isNodeEditMode) {
+        const auto &verts = scene.getSelectedFigure()->getVertices();
+        for (const auto &v : verts) {
+          sf::RectangleShape handle(sf::Vector2f(8.f, 8.f));
+          handle.setOrigin(4.f, 4.f);
+          handle.setPosition(scene.getSelectedFigure()->anchor + v);
+          handle.setFillColor(sf::Color::White);
+          handle.setOutlineColor(sf::Color(0, 120, 215));
+          handle.setOutlineThickness(1.5f);
+          window.draw(handle);
+        }
+      }
+    }
 
     // Draw preview box if creating
     if (isCreating && currentTool != ui::Tool::Select) {
