@@ -97,19 +97,23 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport) {
   }
   ImGui::Spacing();
 
-  // 2. Vertices
+  // 2. Vertices (Global offset)
   auto &vertices = selectedFigure->getVerticesMutable();
   if (!vertices.empty()) {
     ImGui::Separator();
-    ImGui::Text("Vertices (relative)");
+    ImGui::Text("Move by Vertex Coordinate");
     for (size_t i = 0; i < vertices.size(); ++i) {
       ImGui::PushID(static_cast<int>(i + 100));
       ImGui::Text("V%zu", i + 1);
       ImGui::SameLine();
-      float v[2] = {vertices[i].x, vertices[i].y};
+      sf::Vector2f absV = selectedFigure->getAbsoluteVertex(vertices[i]);
+      sf::Vector2f displayV = absV - selectedFigure->parentOrigin;
+      float v[2] = {displayV.x, displayV.y};
       if (ImGui::DragFloat2("##v", v, 0.5f)) {
-        vertices[i].x = v[0];
-        vertices[i].y = v[1];
+        sf::Vector2f newAbs(v[0], v[1]);
+        newAbs += selectedFigure->parentOrigin;
+        sf::Vector2f delta = newAbs - absV;
+        selectedFigure->move(delta);
       }
       ImGui::PopID();
     }
