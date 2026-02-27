@@ -49,4 +49,14 @@ private:
   float m_height;
 };
 
+class Circle : public Figure {
+public:
+  Circle(float radiusX, float radiusY);
+  bool hasUniformEdge() const override { return true; }
+
+private:
+  float m_radiusX;
+  float m_radiusY;
+};
+
 } // namespace core

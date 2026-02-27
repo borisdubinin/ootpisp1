@@ -57,6 +57,9 @@ public:
   // Move the figure relative to its current anchor
   void move(sf::Vector2f delta);
 
+  // Return true if all edges should be styled identically in the UI
+  virtual bool hasUniformEdge() const { return false; }
+
 protected:
   // Relative vertices for this figure
   std::vector<sf::Vector2f> m_vertices;

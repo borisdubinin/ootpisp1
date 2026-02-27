@@ -99,7 +99,7 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport) {
 
   // 2. Vertices (Global offset)
   auto &vertices = selectedFigure->getVerticesMutable();
-  if (!vertices.empty()) {
+  if (!vertices.empty() && !selectedFigure->hasUniformEdge()) {
     ImGui::Separator();
     ImGui::Text("Move by Vertex Coordinate");
     for (size_t i = 0; i < vertices.size(); ++i) {
@@ -174,31 +174,56 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport) {
   if (!selectedFigure->edges.empty()) {
     ImGui::Separator();
     ImGui::Text("Edges");
-    for (size_t i = 0; i < selectedFigure->edges.size(); ++i) {
-      ImGui::PushID(static_cast<int>(i));
-      ImGui::Text("Edge #%zu", i + 1);
-
-      float width = selectedFigure->edges[i].width;
+    if (selectedFigure->hasUniformEdge()) {
+      ImGui::PushID("UniformEdge");
+      float width = selectedFigure->edges[0].width;
       if (ImGui::DragFloat("Width", &width, 0.5f, 0.f, 100.f)) {
-        selectedFigure->edges[i].width = width;
+        for (auto &edge : selectedFigure->edges) {
+          edge.width = width;
+        }
       }
 
-      float eCol[4] = {selectedFigure->edges[i].color.r / 255.f,
-                       selectedFigure->edges[i].color.g / 255.f,
-                       selectedFigure->edges[i].color.b / 255.f,
-                       selectedFigure->edges[i].color.a / 255.f};
+      float eCol[4] = {selectedFigure->edges[0].color.r / 255.f,
+                       selectedFigure->edges[0].color.g / 255.f,
+                       selectedFigure->edges[0].color.b / 255.f,
+                       selectedFigure->edges[0].color.a / 255.f};
       if (ImGui::ColorEdit4("Color", eCol)) {
-        selectedFigure->edges[i].color.r =
-            static_cast<sf::Uint8>(eCol[0] * 255.f);
-        selectedFigure->edges[i].color.g =
-            static_cast<sf::Uint8>(eCol[1] * 255.f);
-        selectedFigure->edges[i].color.b =
-            static_cast<sf::Uint8>(eCol[2] * 255.f);
-        selectedFigure->edges[i].color.a =
-            static_cast<sf::Uint8>(eCol[3] * 255.f);
+        for (auto &edge : selectedFigure->edges) {
+          edge.color.r = static_cast<sf::Uint8>(eCol[0] * 255.f);
+          edge.color.g = static_cast<sf::Uint8>(eCol[1] * 255.f);
+          edge.color.b = static_cast<sf::Uint8>(eCol[2] * 255.f);
+          edge.color.a = static_cast<sf::Uint8>(eCol[3] * 255.f);
+        }
       }
       ImGui::PopID();
       ImGui::Spacing();
+    } else {
+      for (size_t i = 0; i < selectedFigure->edges.size(); ++i) {
+        ImGui::PushID(static_cast<int>(i));
+        ImGui::Text("Edge #%zu", i + 1);
+
+        float width = selectedFigure->edges[i].width;
+        if (ImGui::DragFloat("Width", &width, 0.5f, 0.f, 100.f)) {
+          selectedFigure->edges[i].width = width;
+        }
+
+        float eCol[4] = {selectedFigure->edges[i].color.r / 255.f,
+                         selectedFigure->edges[i].color.g / 255.f,
+                         selectedFigure->edges[i].color.b / 255.f,
+                         selectedFigure->edges[i].color.a / 255.f};
+        if (ImGui::ColorEdit4("Color", eCol)) {
+          selectedFigure->edges[i].color.r =
+              static_cast<sf::Uint8>(eCol[0] * 255.f);
+          selectedFigure->edges[i].color.g =
+              static_cast<sf::Uint8>(eCol[1] * 255.f);
+          selectedFigure->edges[i].color.b =
+              static_cast<sf::Uint8>(eCol[2] * 255.f);
+          selectedFigure->edges[i].color.a =
+              static_cast<sf::Uint8>(eCol[3] * 255.f);
+        }
+        ImGui::PopID();
+        ImGui::Spacing();
+      }
     }
   }
 

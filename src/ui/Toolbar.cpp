@@ -43,6 +43,7 @@ bool Toolbar::render(Tool &currentTool) {
   renderToolButton("Hex", Tool::Hexagon);
   renderToolButton("Rhombus", Tool::Rhombus);
   renderToolButton("Trapezoid", Tool::Trapezoid);
+  renderToolButton("Circle", Tool::Circle);
 
   ImGui::End();
 

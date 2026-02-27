@@ -50,4 +50,16 @@ Trapezoid::Trapezoid(float topWidth, float bottomWidth, float height)
                 {-m_bottomWidth / 2.f, m_height / 2.f}};
 }
 
+// Circle (Ellipse)
+Circle::Circle(float radiusX, float radiusY)
+    : m_radiusX(radiusX), m_radiusY(radiusY) {
+  int segments = 60;
+  edges.resize(segments);
+  m_vertices.resize(segments);
+  for (int i = 0; i < segments; ++i) {
+    float angle = i * 2.f * 3.14159265f / segments;
+    m_vertices[i] = {m_radiusX * std::cos(angle), m_radiusY * std::sin(angle)};
+  }
+}
+
 } // namespace core

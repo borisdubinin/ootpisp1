@@ -113,6 +113,8 @@ int main() {
       fig = std::make_unique<core::Rhombus>(width, height);
     else if (tool == ui::Tool::Trapezoid)
       fig = std::make_unique<core::Trapezoid>(width * 0.6f, width, height);
+    else if (tool == ui::Tool::Circle)
+      fig = std::make_unique<core::Circle>(width / 2.f, height / 2.f);
 
     if (fig) {
       fig->fillColor = sf::Color(150, 150, 150);
@@ -168,6 +170,8 @@ int main() {
           currentTool = ui::Tool::Rhombus;
         else if (event.key.code == sf::Keyboard::Z)
           currentTool = ui::Tool::Trapezoid;
+        else if (event.key.code == sf::Keyboard::C)
+          currentTool = ui::Tool::Circle;
         else if (event.key.code == sf::Keyboard::Escape) {
           if (isNodeEditMode) {
             isNodeEditMode = false;
