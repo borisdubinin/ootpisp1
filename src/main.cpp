@@ -44,7 +44,8 @@ int main() {
     return -1;
   }
 
-  // Load custom font for Russian support
+  // Load custom font (with Cyrillic support just in case, but UI remains
+  // English)
   ImGuiIO &io = ImGui::GetIO();
   ImFontConfig fontConfig;
   fontConfig.OversampleH = 2;
@@ -316,13 +317,14 @@ int main() {
                                 localBounds.top);
                 sf::Vector2f tc = (tl + tr) / 2.f;
                 sf::Vector2f absTc = selFig->getAbsoluteVertex(tc);
+                float markerScale = 1.f / viewport.zoom;
                 float rotRad = selFig->rotationAngle * M_PI / 180.f;
-                sf::Vector2f rotOffset(std::sin(rotRad) * 20.f,
-                                       -std::cos(rotRad) * 20.f);
+                sf::Vector2f rotOffset(std::sin(rotRad) * 20.f * markerScale,
+                                       -std::cos(rotRad) * 20.f * markerScale);
                 sf::Vector2f rotMarker = absTc + rotOffset;
 
                 if (std::hypot(mousePos.x - rotMarker.x,
-                               mousePos.y - rotMarker.y) <= 8.f) {
+                               mousePos.y - rotMarker.y) <= 8.f * markerScale) {
                   hitRotationMarker = true;
                 }
 
@@ -745,8 +747,20 @@ int main() {
     ImGui::Begin("Status Bar", nullptr, statusFlags);
     sf::Vector2f mPos = viewport.screenToWorld(sf::Vector2f(
         sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y));
-    ImGui::Text("Zoom: %.0f%%   |   Cursor: (%.1f, %.1f)",
-                viewport.zoom * 100.f, mPos.x, mPos.y);
+
+    char statusText[256];
+    snprintf(statusText, sizeof(statusText),
+             "Zoom: %.0f%%   |   Cursor: (%.1f, %.1f)", viewport.zoom * 100.f,
+             mPos.x, mPos.y);
+
+    float textWidth = ImGui::CalcTextSize(statusText).x;
+    float windowWidth = ImGui::GetWindowSize().x;
+    ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
+
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+    ImGui::TextUnformatted(statusText);
+    ImGui::PopStyleColor();
+
     ImGui::End();
     ImGui::PopStyleVar();
 
