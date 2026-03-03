@@ -11,19 +11,25 @@
 #include <iostream>
 #include <memory>
 
-void drawAnchorMarker(sf::RenderTarget &target, sf::Vector2f pos) {
-  sf::CircleShape circle(5.f);
+void drawAnchorMarker(sf::RenderTarget &target, sf::Vector2f pos,
+                      float markerScale) {
+  float r = 5.f * markerScale;
+  sf::CircleShape circle(r);
   circle.setFillColor(sf::Color::Transparent);
   circle.setOutlineColor(sf::Color::White);
-  circle.setOutlineThickness(1.5f);
-  circle.setOrigin(5.f, 5.f);
+  circle.setOutlineThickness(1.5f * markerScale);
+  circle.setOrigin(r, r);
   circle.setPosition(pos);
 
   sf::VertexArray lines(sf::Lines, 4);
-  lines[0] = sf::Vertex(pos - sf::Vector2f(8.f, 0.f), sf::Color::White);
-  lines[1] = sf::Vertex(pos + sf::Vector2f(8.f, 0.f), sf::Color::White);
-  lines[2] = sf::Vertex(pos - sf::Vector2f(0.f, 8.f), sf::Color::White);
-  lines[3] = sf::Vertex(pos + sf::Vector2f(0.f, 8.f), sf::Color::White);
+  lines[0] =
+      sf::Vertex(pos - sf::Vector2f(8.f * markerScale, 0.f), sf::Color::White);
+  lines[1] =
+      sf::Vertex(pos + sf::Vector2f(8.f * markerScale, 0.f), sf::Color::White);
+  lines[2] =
+      sf::Vertex(pos - sf::Vector2f(0.f, 8.f * markerScale), sf::Color::White);
+  lines[3] =
+      sf::Vertex(pos + sf::Vector2f(0.f, 8.f * markerScale), sf::Color::White);
 
   target.draw(circle);
   target.draw(lines);
@@ -579,13 +585,9 @@ int main() {
                 scene.getSelectedFigure()->parentOrigin +
                 scene.getSelectedFigure()->anchor;
             sf::Vector2f newAbsoluteAnchor = mousePos - dragOffset;
-            sf::Vector2f delta = newAbsoluteAnchor - absoluteAnchor;
 
-            scene.getSelectedFigure()->anchor =
-                newAbsoluteAnchor - scene.getSelectedFigure()->parentOrigin;
-            for (auto &v : scene.getSelectedFigure()->getVerticesMutable()) {
-              v -= delta;
-            }
+            scene.getSelectedFigure()->setAnchorKeepAbsolute(
+                newAbsoluteAnchor - scene.getSelectedFigure()->parentOrigin);
           } else if (isDragging && scene.getSelectedFigure()) {
             sf::Vector2f mousePos = viewport.screenToWorld(
                 sf::Vector2f(event.mouseMove.x, event.mouseMove.y));
@@ -825,8 +827,11 @@ int main() {
 
     // Draw Anchor Marker if figure is selected
     if (scene.getSelectedFigure()) {
-      drawAnchorMarker(window, scene.getSelectedFigure()->parentOrigin +
-                                   scene.getSelectedFigure()->anchor);
+      float markerScale = 1.f / viewport.zoom;
+      drawAnchorMarker(window,
+                       scene.getSelectedFigure()->parentOrigin +
+                           scene.getSelectedFigure()->anchor,
+                       markerScale);
 
       sf::FloatRect localBounds =
           scene.getSelectedFigure()->getLocalBoundingBox();

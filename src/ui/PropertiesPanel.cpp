@@ -92,8 +92,7 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport) {
   ImGui::Text("Anchor Point");
   float anchor[2] = {selectedFigure->anchor.x, selectedFigure->anchor.y};
   if (ImGui::DragFloat2("##Anchor", anchor, 1.0f)) {
-    selectedFigure->anchor.x = anchor[0];
-    selectedFigure->anchor.y = anchor[1];
+    selectedFigure->setAnchorKeepAbsolute(sf::Vector2f(anchor[0], anchor[1]));
   }
   if (ImGui::Button("Reset Anchor")) {
     selectedFigure->resetAnchor();
@@ -156,7 +155,7 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport) {
 
   float scalePct[2] = {selectedFigure->scale.x * 100.f,
                        selectedFigure->scale.y * 100.f};
-  if (ImGui::DragFloat2("Scale %%##Scale", scalePct, 1.0f, 1.0f, 1000.f,
+  if (ImGui::DragFloat2("Scale %%##Scale", scalePct, 1.0f, 1.0f, 10000.f,
                         "%.1f%%")) {
     if (m_lockProportions) {
       if (scalePct[0] != selectedFigure->scale.x * 100.f) {

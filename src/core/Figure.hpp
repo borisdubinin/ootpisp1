@@ -61,6 +61,10 @@ public:
   // figure
   void resetAnchor();
 
+  // Set a new anchor point while keeping the figure's absolute position
+  // invariant
+  void setAnchorKeepAbsolute(sf::Vector2f newAnchor);
+
   // Return true if all edges should be styled identically in the UI
   virtual bool hasUniformEdge() const { return false; }
 

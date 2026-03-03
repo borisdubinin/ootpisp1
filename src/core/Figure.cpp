@@ -115,6 +115,28 @@ void Figure::resetAnchor() {
   }
 }
 
+void Figure::setAnchorKeepAbsolute(sf::Vector2f newAnchor) {
+  if (std::abs(newAnchor.x - anchor.x) < 0.001f &&
+      std::abs(newAnchor.y - anchor.y) < 0.001f) {
+    return;
+  }
+
+  sf::Vector2f deltaA = newAnchor - anchor;
+
+  float invRad = -rotationAngle * M_PI / 180.f;
+  float rx = deltaA.x * std::cos(invRad) - deltaA.y * std::sin(invRad);
+  float ry = deltaA.x * std::sin(invRad) + deltaA.y * std::cos(invRad);
+
+  float vx = (scale.x != 0.f) ? (rx / scale.x) : 0.f;
+  float vy = (scale.y != 0.f) ? (ry / scale.y) : 0.f;
+
+  anchor = newAnchor;
+  for (auto &v : m_vertices) {
+    v.x -= vx;
+    v.y -= vy;
+  }
+}
+
 bool Figure::contains(sf::Vector2f point) const {
   const auto &vertices = getVertices();
   bool c = false;
