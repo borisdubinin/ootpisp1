@@ -177,6 +177,10 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport) {
   if (ImGui::Button("Reset Scale")) {
     selectedFigure->scale = sf::Vector2f(1.f, 1.f);
   }
+  ImGui::SameLine();
+  if (ImGui::Button("Apply Scale")) {
+    selectedFigure->applyScale();
+  }
   ImGui::Spacing();
 
   // 7. Edges

@@ -65,6 +65,10 @@ public:
   // invariant
   void setAnchorKeepAbsolute(sf::Vector2f newAnchor);
 
+  // Apply the current scale factor permanently to the figure's vertices
+  // and reset the scale vector to (1, 1).
+  void applyScale();
+
   // Return true if all edges should be styled identically in the UI
   virtual bool hasUniformEdge() const { return false; }
 

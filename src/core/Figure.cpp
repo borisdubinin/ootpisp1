@@ -137,6 +137,14 @@ void Figure::setAnchorKeepAbsolute(sf::Vector2f newAnchor) {
   }
 }
 
+void Figure::applyScale() {
+  for (auto &v : m_vertices) {
+    v.x *= scale.x;
+    v.y *= scale.y;
+  }
+  scale = sf::Vector2f(1.f, 1.f);
+}
+
 bool Figure::contains(sf::Vector2f point) const {
   const auto &vertices = getVertices();
   bool c = false;
