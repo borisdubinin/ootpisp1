@@ -14,6 +14,10 @@ public:
 
 private:
   bool m_lockProportions = true;
+  bool m_lockAnchor = false;
+
+public:
+  bool m_drawOriginsOverFigures = true;
 };
 
 } // namespace ui

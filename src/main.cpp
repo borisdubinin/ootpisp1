@@ -793,68 +793,88 @@ int main() {
       window.draw(grid);
     }
 
-    // Origin Indicators
-    if (showOriginAxes) {
-      sf::Vector2f activeOrigin = scene.customOriginActive
-                                      ? scene.customOriginPos
-                                      : sf::Vector2f(0.f, 0.f);
+    auto drawOrigins = [&]() {
+      // Origin Axes
+      if (showOriginAxes) {
+        sf::Vector2f activeOrigin = scene.customOriginActive
+                                        ? scene.customOriginPos
+                                        : sf::Vector2f(0.f, 0.f);
 
-      sf::VertexArray originAxes(sf::Lines, 4);
-      sf::Color axisColor(100, 100, 100, 150);
-      sf::Vector2f boundsMin = viewport.screenToWorld(sf::Vector2f(0.f, 0.f));
-      sf::Vector2f boundsMax = viewport.screenToWorld(
-          sf::Vector2f(window.getSize().x, window.getSize().y));
+        sf::VertexArray originAxes(sf::Lines, 4);
+        sf::Color axisColor(100, 100, 100, 150);
+        sf::Vector2f boundsMin = viewport.screenToWorld(sf::Vector2f(0.f, 0.f));
+        sf::Vector2f boundsMax = viewport.screenToWorld(
+            sf::Vector2f(window.getSize().x, window.getSize().y));
 
-      originAxes[0] =
-          sf::Vertex(sf::Vector2f(boundsMin.x, activeOrigin.y), axisColor);
-      originAxes[1] =
-          sf::Vertex(sf::Vector2f(boundsMax.x, activeOrigin.y), axisColor);
-      originAxes[2] =
-          sf::Vertex(sf::Vector2f(activeOrigin.x, boundsMin.y), axisColor);
-      originAxes[3] =
-          sf::Vertex(sf::Vector2f(activeOrigin.x, boundsMax.y), axisColor);
-      window.draw(originAxes);
-    }
+        originAxes[0] =
+            sf::Vertex(sf::Vector2f(boundsMin.x, activeOrigin.y), axisColor);
+        originAxes[1] =
+            sf::Vertex(sf::Vector2f(boundsMax.x, activeOrigin.y), axisColor);
+        originAxes[2] =
+            sf::Vertex(sf::Vector2f(activeOrigin.x, boundsMin.y), axisColor);
+        originAxes[3] =
+            sf::Vertex(sf::Vector2f(activeOrigin.x, boundsMax.y), axisColor);
+        window.draw(originAxes);
+      }
 
-    // Always draw Global gray Marker at (0,0) World
-    {
-      float markerScale = 1.f / viewport.zoom;
-      sf::VertexArray cross(sf::Lines, 4);
-      sf::Color crossCol(150, 150, 150);
-      cross[0] = sf::Vertex(sf::Vector2f(-12.f * markerScale, 0.f), crossCol);
-      cross[1] = sf::Vertex(sf::Vector2f(12.f * markerScale, 0.f), crossCol);
-      cross[2] = sf::Vertex(sf::Vector2f(0.f, -12.f * markerScale), crossCol);
-      cross[3] = sf::Vertex(sf::Vector2f(0.f, 12.f * markerScale), crossCol);
-      window.draw(cross);
-    }
+      // Always draw Global gray Marker at (0,0) World
+      {
+        float markerScale = 1.f / viewport.zoom;
+        sf::Color crossCol(80, 80, 80);
 
-    // Draw Custom Movable Origin Marker at scene.customOriginPos
-    if (scene.customOriginActive) {
-      float markerScale = 1.f / viewport.zoom;
-      sf::Vector2f cPos = scene.customOriginPos;
+        float length = 24.f * markerScale;
+        float thickness = 2.f * markerScale;
 
-      sf::CircleShape circ(6.f * markerScale);
-      circ.setOrigin(6.f * markerScale, 6.f * markerScale);
-      circ.setPosition(cPos);
-      circ.setFillColor(sf::Color::Transparent);
-      circ.setOutlineColor(sf::Color(255, 50, 50));
-      circ.setOutlineThickness(1.5f * markerScale);
-      window.draw(circ);
+        sf::RectangleShape hLine(sf::Vector2f(length, thickness));
+        hLine.setOrigin(length / 2.f, thickness / 2.f);
+        hLine.setPosition(0.f, 0.f);
+        hLine.setFillColor(crossCol);
 
-      sf::VertexArray cross(sf::Lines, 4);
-      sf::Color crossCol(255, 50, 50);
-      cross[0] = sf::Vertex(sf::Vector2f(cPos.x - 12.f * markerScale, cPos.y),
-                            crossCol);
-      cross[1] = sf::Vertex(sf::Vector2f(cPos.x + 12.f * markerScale, cPos.y),
-                            crossCol);
-      cross[2] = sf::Vertex(sf::Vector2f(cPos.x, cPos.y - 12.f * markerScale),
-                            crossCol);
-      cross[3] = sf::Vertex(sf::Vector2f(cPos.x, cPos.y + 12.f * markerScale),
-                            crossCol);
-      window.draw(cross);
+        sf::RectangleShape vLine(sf::Vector2f(thickness, length));
+        vLine.setOrigin(thickness / 2.f, length / 2.f);
+        vLine.setPosition(0.f, 0.f);
+        vLine.setFillColor(crossCol);
+
+        window.draw(hLine);
+        window.draw(vLine);
+      }
+
+      // Draw Custom Movable Origin Marker at scene.customOriginPos
+      if (scene.customOriginActive) {
+        float markerScale = 1.f / viewport.zoom;
+        sf::Vector2f cPos = scene.customOriginPos;
+
+        sf::CircleShape circ(6.f * markerScale);
+        circ.setOrigin(6.f * markerScale, 6.f * markerScale);
+        circ.setPosition(cPos);
+        circ.setFillColor(sf::Color::Transparent);
+        circ.setOutlineColor(sf::Color(255, 50, 50));
+        circ.setOutlineThickness(1.5f * markerScale);
+        window.draw(circ);
+
+        sf::VertexArray cross(sf::Lines, 4);
+        sf::Color crossCol(255, 50, 50);
+        cross[0] = sf::Vertex(sf::Vector2f(cPos.x - 12.f * markerScale, cPos.y),
+                              crossCol);
+        cross[1] = sf::Vertex(sf::Vector2f(cPos.x + 12.f * markerScale, cPos.y),
+                              crossCol);
+        cross[2] = sf::Vertex(sf::Vector2f(cPos.x, cPos.y - 12.f * markerScale),
+                              crossCol);
+        cross[3] = sf::Vertex(sf::Vector2f(cPos.x, cPos.y + 12.f * markerScale),
+                              crossCol);
+        window.draw(cross);
+      }
+    };
+
+    if (!propertiesPanel.m_drawOriginsOverFigures) {
+      drawOrigins();
     }
 
     scene.drawAll(window, 1.f / viewport.zoom);
+
+    if (propertiesPanel.m_drawOriginsOverFigures) {
+      drawOrigins();
+    }
 
     // Draw Anchor Marker if figure is selected
     if (scene.getSelectedFigure()) {

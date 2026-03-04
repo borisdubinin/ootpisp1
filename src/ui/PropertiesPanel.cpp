@@ -44,6 +44,7 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport) {
       scene.resetCustomOrigin();
     }
   }
+  ImGui::Checkbox("Draw Over Figures", &m_drawOriginsOverFigures);
 
   ImGui::Text("ZOOM");
   if (ImGui::Button("-")) {
@@ -90,9 +91,15 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport) {
 
   // 1. Anchor
   ImGui::Text("Anchor Point");
+  ImGui::SameLine();
+  ImGui::Checkbox("Lock to Figure", &m_lockAnchor);
   float anchor[2] = {selectedFigure->anchor.x, selectedFigure->anchor.y};
   if (ImGui::DragFloat2("##Anchor", anchor, 1.0f)) {
-    selectedFigure->setAnchorKeepAbsolute(sf::Vector2f(anchor[0], anchor[1]));
+    if (m_lockAnchor) {
+      selectedFigure->anchor = sf::Vector2f(anchor[0], anchor[1]);
+    } else {
+      selectedFigure->setAnchorKeepAbsolute(sf::Vector2f(anchor[0], anchor[1]));
+    }
   }
   if (ImGui::Button("Reset Anchor")) {
     selectedFigure->resetAnchor();
