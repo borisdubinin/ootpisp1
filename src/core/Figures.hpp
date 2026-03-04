@@ -8,6 +8,9 @@ class Rectangle : public Figure {
 public:
   Rectangle(float width, float height);
 
+  bool hasSideLengths() const override { return true; }
+  void setSideLengths(const std::vector<float> &lengths) override;
+
 private:
   float m_width;
   float m_height;
@@ -16,6 +19,9 @@ private:
 class Triangle : public Figure {
 public:
   Triangle(float base, float height);
+
+  bool hasSideLengths() const override { return true; }
+  void setSideLengths(const std::vector<float> &lengths) override;
 
 private:
   float m_base;
@@ -26,6 +32,9 @@ class Hexagon : public Figure {
 public:
   Hexagon(float width, float height);
 
+  bool hasSideLengths() const override { return true; }
+  void setSideLengths(const std::vector<float> &lengths) override;
+
 private:
   float m_width;
   float m_height;
@@ -35,6 +44,9 @@ class Rhombus : public Figure {
 public:
   Rhombus(float width, float height);
 
+  bool hasSideLengths() const override { return true; }
+  void setSideLengths(const std::vector<float> &lengths) override;
+
 private:
   float m_width;
   float m_height;
@@ -43,6 +55,9 @@ private:
 class Trapezoid : public Figure {
 public:
   Trapezoid(float topWidth, float bottomWidth, float height);
+
+  bool hasSideLengths() const override { return true; }
+  void setSideLengths(const std::vector<float> &lengths) override;
 
 private:
   float m_topWidth;

@@ -1,4 +1,5 @@
 #include "PropertiesPanel.hpp"
+#include "../core/Figures.hpp"
 #include <algorithm>
 #include <string>
 
@@ -238,6 +239,32 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport) {
         ImGui::Spacing();
       }
     }
+  }
+
+  // 8. Side Lengths (live edit)
+  if (selectedFigure->hasSideLengths()) {
+    ImGui::Separator();
+    if (ImGui::TreeNodeEx("Side Lengths", ImGuiTreeNodeFlags_DefaultOpen)) {
+      auto lengths = selectedFigure->getSideLengths();
+      bool changed = false;
+      for (size_t i = 0; i < lengths.size(); ++i) {
+        ImGui::PushID(static_cast<int>(i + 500));
+        char label[32];
+        snprintf(label, sizeof(label), "Side %zu", i + 1);
+        float l = lengths[i];
+        ImGui::SetNextItemWidth(-1.f);
+        if (ImGui::DragFloat(label, &l, 0.5f, 1.f, 5000.f, "%.1f")) {
+          lengths[i] = l;
+          changed = true;
+        }
+        ImGui::PopID();
+      }
+      if (changed) {
+        selectedFigure->setSideLengths(lengths);
+      }
+      ImGui::TreePop();
+    }
+    ImGui::Spacing();
   }
 
   // 5. Bounding Box (Read only)

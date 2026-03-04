@@ -47,6 +47,7 @@ add_executable(GraphEditor
     src/core/Scene.cpp
     src/ui/Toolbar.cpp
     src/ui/PropertiesPanel.cpp
+    src/ui/CreateFigureModal.cpp
 )
 
 target_include_directories(GraphEditor PRIVATE src)

@@ -3,6 +3,22 @@
 
 namespace core {
 
+std::vector<float> Figure::getSideLengths() const {
+  std::vector<float> lengths;
+  const auto &verts = getVertices();
+  int n = static_cast<int>(verts.size());
+  if (n < 2)
+    return lengths;
+  for (int i = 0; i < n; ++i) {
+    const auto &a = verts[i];
+    const auto &b = verts[(i + 1) % n];
+    float dx = b.x - a.x;
+    float dy = b.y - a.y;
+    lengths.push_back(std::sqrt(dx * dx + dy * dy));
+  }
+  return lengths;
+}
+
 // Math helpers
 static float getLength(sf::Vector2f v) {
   return std::sqrt(v.x * v.x + v.y * v.y);

@@ -368,6 +368,30 @@ src/main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/GraphEditor.dir/build.make CMakeFiles/GraphEditor.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
+src/ui/CreateFigureModal.o: src/ui/CreateFigureModal.cpp.o
+.PHONY : src/ui/CreateFigureModal.o
+
+# target to build an object file
+src/ui/CreateFigureModal.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/GraphEditor.dir/build.make CMakeFiles/GraphEditor.dir/src/ui/CreateFigureModal.cpp.o
+.PHONY : src/ui/CreateFigureModal.cpp.o
+
+src/ui/CreateFigureModal.i: src/ui/CreateFigureModal.cpp.i
+.PHONY : src/ui/CreateFigureModal.i
+
+# target to preprocess a source file
+src/ui/CreateFigureModal.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/GraphEditor.dir/build.make CMakeFiles/GraphEditor.dir/src/ui/CreateFigureModal.cpp.i
+.PHONY : src/ui/CreateFigureModal.cpp.i
+
+src/ui/CreateFigureModal.s: src/ui/CreateFigureModal.cpp.s
+.PHONY : src/ui/CreateFigureModal.s
+
+# target to generate assembly for a file
+src/ui/CreateFigureModal.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/GraphEditor.dir/build.make CMakeFiles/GraphEditor.dir/src/ui/CreateFigureModal.cpp.s
+.PHONY : src/ui/CreateFigureModal.cpp.s
+
 src/ui/PropertiesPanel.o: src/ui/PropertiesPanel.cpp.o
 .PHONY : src/ui/PropertiesPanel.o
 
@@ -449,6 +473,9 @@ help:
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
+	@echo "... src/ui/CreateFigureModal.o"
+	@echo "... src/ui/CreateFigureModal.i"
+	@echo "... src/ui/CreateFigureModal.s"
 	@echo "... src/ui/PropertiesPanel.o"
 	@echo "... src/ui/PropertiesPanel.i"
 	@echo "... src/ui/PropertiesPanel.s"

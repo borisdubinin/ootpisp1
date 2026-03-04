@@ -1,6 +1,7 @@
 #include "core/Figures.hpp"
 #include "core/Scene.hpp"
 #include "core/Viewport.hpp"
+#include "ui/CreateFigureModal.hpp"
 #include "ui/PropertiesPanel.hpp"
 #include "ui/Toolbar.hpp"
 #include <SFML/Graphics.hpp>
@@ -47,6 +48,7 @@ int main() {
 
   ui::Toolbar toolbar;
   ui::PropertiesPanel propertiesPanel;
+  ui::CreateFigureModal createModal;
   ui::Tool currentTool = ui::Tool::Select;
 
   bool isDragging = false;
@@ -265,6 +267,13 @@ int main() {
             panStartMouse =
                 sf::Vector2f(event.mouseButton.x, event.mouseButton.y);
             panStartOrigin = viewport.worldOrigin;
+          } else if (event.mouseButton.button == sf::Mouse::Right) {
+            sf::Vector2f mousePosScreen(event.mouseButton.x,
+                                        event.mouseButton.y);
+            sf::Vector2f mousePos = viewport.screenToWorld(mousePosScreen);
+            if (!createModal.isOpen()) {
+              createModal.open(mousePos);
+            }
           } else if (event.mouseButton.button == sf::Mouse::Left) {
             sf::Vector2f mousePosScreen(event.mouseButton.x,
                                         event.mouseButton.y);
@@ -739,6 +748,7 @@ int main() {
     // Render UI
     toolbar.render(currentTool);
     bool fitRequested = propertiesPanel.render(scene, viewport);
+    createModal.render(scene);
 
     if (fitRequested && !scene.getFigures().empty()) {
       const auto &figs = scene.getFigures();

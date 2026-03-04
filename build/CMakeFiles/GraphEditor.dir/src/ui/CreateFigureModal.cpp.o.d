@@ -1,7 +1,7 @@
-CMakeFiles/GraphEditor.dir/src/main.cpp.o: \
-  /Users/andreika/Desktop/norm/src/main.cpp \
-  /Users/andreika/Desktop/norm/src/core/Figures.hpp \
-  /Users/andreika/Desktop/norm/src/core/Figure.hpp \
+CMakeFiles/GraphEditor.dir/src/ui/CreateFigureModal.cpp.o: \
+  /Users/andreika/Desktop/norm/src/ui/CreateFigureModal.cpp \
+  /Users/andreika/Desktop/norm/src/ui/CreateFigureModal.hpp \
+  /Users/andreika/Desktop/norm/src/ui/../core/Figure.hpp \
   /Users/andreika/Desktop/norm/build/_deps/sfml-src/include/SFML/Graphics.hpp \
   /Users/andreika/Desktop/norm/build/_deps/sfml-src/include/SFML/Window.hpp \
   /Users/andreika/Desktop/norm/build/_deps/sfml-src/include/SFML/System.hpp \
@@ -872,13 +872,8 @@ CMakeFiles/GraphEditor.dir/src/main.cpp.o: \
   /Users/andreika/Desktop/norm/build/_deps/sfml-src/include/SFML/Graphics/Sprite.hpp \
   /Users/andreika/Desktop/norm/build/_deps/sfml-src/include/SFML/Graphics/Text.hpp \
   /Users/andreika/Desktop/norm/build/_deps/sfml-src/include/SFML/Graphics/VertexBuffer.hpp \
-  /Users/andreika/Desktop/norm/src/core/Scene.hpp \
-  /Users/andreika/Desktop/norm/src/core/Viewport.hpp \
-  /Users/andreika/Desktop/norm/src/ui/CreateFigureModal.hpp \
-  /Users/andreika/Desktop/norm/src/ui/../core/Figure.hpp \
   /Users/andreika/Desktop/norm/src/ui/../core/Scene.hpp \
-  /Users/andreika/Desktop/norm/src/ui/PropertiesPanel.hpp \
-  /Users/andreika/Desktop/norm/src/ui/../core/Viewport.hpp \
+  /Users/andreika/Desktop/norm/src/ui/../core/Figures.hpp \
   /Users/andreika/Desktop/norm/build/_deps/imgui-src/imgui.h \
   /Users/andreika/Desktop/norm/build/_deps/imgui-sfml-src/imconfig-SFML.h \
   /Users/andreika/Desktop/norm/build/_deps/imgui-sfml-src/imgui-SFML_export.h \
@@ -888,8 +883,4 @@ CMakeFiles/GraphEditor.dir/src/main.cpp.o: \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/float.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/assert.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_assert.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_static_assert.h \
-  /Users/andreika/Desktop/norm/src/ui/Toolbar.hpp \
-  /Users/andreika/Desktop/norm/build/_deps/imgui-sfml-src/imgui-SFML.h \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/iostream \
-  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/istream
+  /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/_static_assert.h

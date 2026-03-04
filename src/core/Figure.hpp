@@ -72,6 +72,16 @@ public:
   // Return true if all edges should be styled identically in the UI
   virtual bool hasUniformEdge() const { return false; }
 
+  // Return true if this figure supports per-side length editing
+  virtual bool hasSideLengths() const { return false; }
+
+  // Return the current side lengths (distance between consecutive vertices)
+  virtual std::vector<float> getSideLengths() const;
+
+  // Set new side lengths and recompute vertices to match.
+  // Subclasses override this to implement their geometry solver.
+  virtual void setSideLengths(const std::vector<float> & /*lengths*/) {}
+
 protected:
   // Relative vertices for this figure
   std::vector<sf::Vector2f> m_vertices;
