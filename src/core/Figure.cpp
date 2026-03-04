@@ -22,6 +22,43 @@ std::vector<float> Figure::getSideLengths() const {
   return lengths;
 }
 
+void Figure::applyGenericSideLengths(const std::vector<float> &lengths) {
+  int n = static_cast<int>(m_vertices.size());
+  if (n < 3)
+    return;
+  std::vector<sf::Vector2f> pts = m_vertices;
+
+  // Spring solver targeting exact side lengths
+  for (int iter = 0; iter < 1000; ++iter) {
+    for (int i = 0; i < n; ++i) {
+      int j = (i + 1) % n;
+      float L = (i < lengths.size()) ? lengths[i] : 1.f;
+      L = std::max(1.f, L);
+
+      sf::Vector2f dir = pts[j] - pts[i];
+      float dist = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+      if (dist < 1e-6f)
+        continue;
+
+      float err = (dist - L) / dist;
+      float stiffness = 0.5f;
+
+      pts[i] += stiffness * 0.5f * err * dir;
+      pts[j] -= stiffness * 0.5f * err * dir;
+    }
+  }
+
+  // Re-center around (0,0) locally
+  sf::Vector2f cx(0.f, 0.f);
+  for (const auto &v : pts)
+    cx += v;
+  cx /= static_cast<float>(n);
+  for (auto &v : pts)
+    v -= cx;
+
+  m_vertices = pts;
+}
+
 // Math helpers
 static float getLength(sf::Vector2f v) {
   return std::sqrt(v.x * v.x + v.y * v.y);

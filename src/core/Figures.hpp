@@ -27,7 +27,7 @@ public:
   bool hasSideLengths() const override { return true; }
   void setSideLengths(const std::vector<float> &lengths) override;
   const char *getSideName(int idx) const override {
-    static const char *n[] = {"Bottom", "Right side", "Left side"};
+    static const char *n[] = {"Right side", "Bottom", "Left side"};
     return (idx >= 0 && idx < 3) ? n[idx] : "Side";
   }
 

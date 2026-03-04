@@ -60,10 +60,9 @@ Triangle::Triangle(float base, float height) : m_base(base), m_height(height) {
 void Triangle::setSideLengths(const std::vector<float> &lengths) {
   if (lengths.size() < 3)
     return;
-  float a =
-      std::max(1.f, lengths[0]); // side opposite to vertex A (bottom side)
-  float b = std::max(1.f, lengths[1]); // side right
-  float c = std::max(1.f, lengths[2]); // side left
+  float b = std::max(1.f, lengths[0]); // Right edge
+  float a = std::max(1.f, lengths[1]); // Bottom edge (base)
+  float c = std::max(1.f, lengths[2]); // Left edge
 
   // Clamp to valid triangle: each side < sum of other two
   float sumBC = b + c, sumAC = a + c, sumAB = a + b;

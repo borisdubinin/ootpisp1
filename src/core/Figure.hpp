@@ -85,6 +85,13 @@ public:
   // Subclasses override this to implement their geometry solver.
   virtual void setSideLengths(const std::vector<float> & /*lengths*/) {}
 
+  std::vector<bool> lockedSides;
+  std::vector<float> lockedLengths;
+
+  // Generic geometric solver to force exact side lengths regardless of shape
+  // type
+  void applyGenericSideLengths(const std::vector<float> &lengths);
+
 protected:
   // Relative vertices for this figure
   std::vector<sf::Vector2f> m_vertices;
