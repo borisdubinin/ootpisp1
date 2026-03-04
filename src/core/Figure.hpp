@@ -65,8 +65,32 @@ public:
   // invariant
   void setAnchorKeepAbsolute(sf::Vector2f newAnchor);
 
+  // Apply the current scale factor permanently to the figure's vertices
+  // and reset the scale vector to (1, 1).
+  void applyScale();
+
   // Return true if all edges should be styled identically in the UI
   virtual bool hasUniformEdge() const { return false; }
+
+  // Return true if this figure supports per-side length editing
+  virtual bool hasSideLengths() const { return false; }
+
+  // Return the display name of side i (e.g. "Top", "Right leg")
+  virtual const char *getSideName(int /*idx*/) const { return "Side"; }
+
+  // Return the current side lengths (distance between consecutive vertices)
+  virtual std::vector<float> getSideLengths() const;
+
+  // Set new side lengths and recompute vertices to match.
+  // Subclasses override this to implement their geometry solver.
+  virtual void setSideLengths(const std::vector<float> & /*lengths*/) {}
+
+  std::vector<bool> lockedSides;
+  std::vector<float> lockedLengths;
+
+  // Generic geometric solver to force exact side lengths regardless of shape
+  // type
+  void applyGenericSideLengths(const std::vector<float> &lengths);
 
 protected:
   // Relative vertices for this figure

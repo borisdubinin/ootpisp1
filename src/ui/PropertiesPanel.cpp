@@ -1,5 +1,7 @@
 #include "PropertiesPanel.hpp"
+#include "../core/Figures.hpp"
 #include <algorithm>
+#include <cstdio>
 #include <string>
 
 namespace ui {
@@ -44,6 +46,7 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport) {
       scene.resetCustomOrigin();
     }
   }
+  ImGui::Checkbox("Draw Over Figures", &m_drawOriginsOverFigures);
 
   ImGui::Text("ZOOM");
   if (ImGui::Button("-")) {
@@ -90,9 +93,15 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport) {
 
   // 1. Anchor
   ImGui::Text("Anchor Point");
+  ImGui::SameLine();
+  ImGui::Checkbox("Lock to Figure", &m_lockAnchor);
   float anchor[2] = {selectedFigure->anchor.x, selectedFigure->anchor.y};
   if (ImGui::DragFloat2("##Anchor", anchor, 1.0f)) {
-    selectedFigure->setAnchorKeepAbsolute(sf::Vector2f(anchor[0], anchor[1]));
+    if (m_lockAnchor) {
+      selectedFigure->anchor = sf::Vector2f(anchor[0], anchor[1]);
+    } else {
+      selectedFigure->setAnchorKeepAbsolute(sf::Vector2f(anchor[0], anchor[1]));
+    }
   }
   if (ImGui::Button("Reset Anchor")) {
     selectedFigure->resetAnchor();
@@ -170,63 +179,144 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport) {
   if (ImGui::Button("Reset Scale")) {
     selectedFigure->scale = sf::Vector2f(1.f, 1.f);
   }
+  ImGui::SameLine();
+  if (ImGui::Button("Apply Scale")) {
+    selectedFigure->applyScale();
+  }
   ImGui::Spacing();
 
-  // 7. Edges
-  if (!selectedFigure->edges.empty()) {
+  // 7. Edges & Side Lengths
+  bool hasLengths = selectedFigure->hasSideLengths();
+  if (!selectedFigure->edges.empty() || hasLengths) {
     ImGui::Separator();
-    ImGui::Text("Edges");
-    if (selectedFigure->hasUniformEdge()) {
-      ImGui::PushID("UniformEdge");
-      float width = selectedFigure->edges[0].width;
-      if (ImGui::DragFloat("Width", &width, 0.5f, 0.f, 100.f)) {
-        for (auto &edge : selectedFigure->edges) {
-          edge.width = width;
-        }
-      }
+    if (ImGui::TreeNodeEx("Edges & Sides", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-      float eCol[4] = {selectedFigure->edges[0].color.r / 255.f,
-                       selectedFigure->edges[0].color.g / 255.f,
-                       selectedFigure->edges[0].color.b / 255.f,
-                       selectedFigure->edges[0].color.a / 255.f};
-      if (ImGui::ColorEdit4("Color", eCol)) {
-        for (auto &edge : selectedFigure->edges) {
-          edge.color.r = static_cast<sf::Uint8>(eCol[0] * 255.f);
-          edge.color.g = static_cast<sf::Uint8>(eCol[1] * 255.f);
-          edge.color.b = static_cast<sf::Uint8>(eCol[2] * 255.f);
-          edge.color.a = static_cast<sf::Uint8>(eCol[3] * 255.f);
-        }
-      }
-      ImGui::PopID();
-      ImGui::Spacing();
-    } else {
-      for (size_t i = 0; i < selectedFigure->edges.size(); ++i) {
-        ImGui::PushID(static_cast<int>(i));
-        ImGui::Text("Edge #%zu", i + 1);
-
-        float width = selectedFigure->edges[i].width;
+      if (selectedFigure->hasUniformEdge()) {
+        ImGui::PushID("UniformEdge");
+        float width = selectedFigure->edges.empty()
+                          ? 1.f
+                          : selectedFigure->edges[0].width;
         if (ImGui::DragFloat("Width", &width, 0.5f, 0.f, 100.f)) {
-          selectedFigure->edges[i].width = width;
+          for (auto &edge : selectedFigure->edges) {
+            edge.width = width;
+          }
         }
 
-        float eCol[4] = {selectedFigure->edges[i].color.r / 255.f,
-                         selectedFigure->edges[i].color.g / 255.f,
-                         selectedFigure->edges[i].color.b / 255.f,
-                         selectedFigure->edges[i].color.a / 255.f};
-        if (ImGui::ColorEdit4("Color", eCol)) {
-          selectedFigure->edges[i].color.r =
-              static_cast<sf::Uint8>(eCol[0] * 255.f);
-          selectedFigure->edges[i].color.g =
-              static_cast<sf::Uint8>(eCol[1] * 255.f);
-          selectedFigure->edges[i].color.b =
-              static_cast<sf::Uint8>(eCol[2] * 255.f);
-          selectedFigure->edges[i].color.a =
-              static_cast<sf::Uint8>(eCol[3] * 255.f);
+        if (!selectedFigure->edges.empty()) {
+          float eCol[4] = {selectedFigure->edges[0].color.r / 255.f,
+                           selectedFigure->edges[0].color.g / 255.f,
+                           selectedFigure->edges[0].color.b / 255.f,
+                           selectedFigure->edges[0].color.a / 255.f};
+          if (ImGui::ColorEdit4("Color", eCol)) {
+            for (auto &edge : selectedFigure->edges) {
+              edge.color.r = static_cast<sf::Uint8>(eCol[0] * 255.f);
+              edge.color.g = static_cast<sf::Uint8>(eCol[1] * 255.f);
+              edge.color.b = static_cast<sf::Uint8>(eCol[2] * 255.f);
+              edge.color.a = static_cast<sf::Uint8>(eCol[3] * 255.f);
+            }
+          }
         }
         ImGui::PopID();
         ImGui::Spacing();
+      } else {
+        auto actualLengths = hasLengths ? selectedFigure->getSideLengths()
+                                        : std::vector<float>();
+        auto &lockedSides = selectedFigure->lockedSides;
+        auto &lockedLengths = selectedFigure->lockedLengths;
+
+        if (lockedSides.size() != selectedFigure->edges.size()) {
+          lockedSides.resize(selectedFigure->edges.size(), false);
+          lockedLengths.resize(selectedFigure->edges.size(), 1.0f);
+          for (size_t i = 0; i < actualLengths.size(); ++i) {
+            if (i < lockedLengths.size())
+              lockedLengths[i] = actualLengths[i];
+          }
+        }
+
+        std::vector<float> displayLengths = actualLengths;
+        for (size_t i = 0; i < displayLengths.size(); ++i) {
+          if (lockedSides[i]) {
+            displayLengths[i] = lockedLengths[i];
+          }
+        }
+
+        bool anyLengthChanged = false;
+
+        for (size_t i = 0; i < selectedFigure->edges.size(); ++i) {
+          ImGui::PushID(static_cast<int>(i));
+
+          if (hasLengths && i < displayLengths.size()) {
+            bool isLocked = lockedSides[i];
+            if (ImGui::Checkbox("##lock", &isLocked)) {
+              lockedSides[i] = isLocked;
+              if (isLocked) {
+                lockedLengths[i] = displayLengths[i];
+              }
+            }
+            if (ImGui::IsItemHovered()) {
+              ImGui::SetTooltip("Lock Side Length");
+            }
+            ImGui::SameLine();
+          }
+
+          ImGui::Text("%s", selectedFigure->getSideName(static_cast<int>(i)));
+
+          if (hasLengths && i < displayLengths.size()) {
+            ImGui::SetNextItemWidth(-1.f);
+            if (ImGui::InputFloat("Length", &displayLengths[i], 1.f, 10.f,
+                                  "%.1f",
+                                  ImGuiInputTextFlags_EnterReturnsTrue)) {
+              if (displayLengths[i] < 1.f)
+                displayLengths[i] = 1.f;
+
+              if (lockedSides[i]) {
+                lockedLengths[i] = displayLengths[i];
+              }
+              anyLengthChanged = true;
+            }
+          }
+
+          float width = selectedFigure->edges[i].width;
+          if (ImGui::DragFloat("Width", &width, 0.5f, 0.f, 100.f)) {
+            selectedFigure->edges[i].width = width;
+          }
+
+          float eCol[4] = {selectedFigure->edges[i].color.r / 255.f,
+                           selectedFigure->edges[i].color.g / 255.f,
+                           selectedFigure->edges[i].color.b / 255.f,
+                           selectedFigure->edges[i].color.a / 255.f};
+          if (ImGui::ColorEdit4("Color", eCol)) {
+            selectedFigure->edges[i].color.r =
+                static_cast<sf::Uint8>(eCol[0] * 255.f);
+            selectedFigure->edges[i].color.g =
+                static_cast<sf::Uint8>(eCol[1] * 255.f);
+            selectedFigure->edges[i].color.b =
+                static_cast<sf::Uint8>(eCol[2] * 255.f);
+            selectedFigure->edges[i].color.a =
+                static_cast<sf::Uint8>(eCol[3] * 255.f);
+          }
+          ImGui::PopID();
+          ImGui::Spacing();
+        }
+
+        if (anyLengthChanged) {
+          selectedFigure->applyScale();
+          bool anyLockedNow = false;
+          for (bool l : selectedFigure->lockedSides) {
+            if (l)
+              anyLockedNow = true;
+          }
+          if (anyLockedNow) {
+            selectedFigure->applyGenericSideLengths(displayLengths);
+          } else {
+            selectedFigure->setSideLengths(displayLengths);
+          }
+        }
       }
+
+      ImGui::TreePop();
     }
+    ImGui::Spacing();
   }
 
   // 5. Bounding Box (Read only)

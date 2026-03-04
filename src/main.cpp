@@ -1,6 +1,7 @@
 #include "core/Figures.hpp"
 #include "core/Scene.hpp"
 #include "core/Viewport.hpp"
+#include "ui/CreateFigureModal.hpp"
 #include "ui/PropertiesPanel.hpp"
 #include "ui/Toolbar.hpp"
 #include <SFML/Graphics.hpp>
@@ -15,21 +16,18 @@ void drawAnchorMarker(sf::RenderTarget &target, sf::Vector2f pos,
                       float markerScale) {
   float r = 5.f * markerScale;
   sf::CircleShape circle(r);
-  circle.setFillColor(sf::Color::Transparent);
-  circle.setOutlineColor(sf::Color::White);
+  circle.setFillColor(sf::Color::White); // Solid white inside for contrast
+  circle.setOutlineColor(sf::Color(0, 120, 215)); // Blue outline
   circle.setOutlineThickness(1.5f * markerScale);
   circle.setOrigin(r, r);
   circle.setPosition(pos);
 
   sf::VertexArray lines(sf::Lines, 4);
-  lines[0] =
-      sf::Vertex(pos - sf::Vector2f(8.f * markerScale, 0.f), sf::Color::White);
-  lines[1] =
-      sf::Vertex(pos + sf::Vector2f(8.f * markerScale, 0.f), sf::Color::White);
-  lines[2] =
-      sf::Vertex(pos - sf::Vector2f(0.f, 8.f * markerScale), sf::Color::White);
-  lines[3] =
-      sf::Vertex(pos + sf::Vector2f(0.f, 8.f * markerScale), sf::Color::White);
+  sf::Color lineColor(0, 120, 215);
+  lines[0] = sf::Vertex(pos - sf::Vector2f(8.f * markerScale, 0.f), lineColor);
+  lines[1] = sf::Vertex(pos + sf::Vector2f(8.f * markerScale, 0.f), lineColor);
+  lines[2] = sf::Vertex(pos - sf::Vector2f(0.f, 8.f * markerScale), lineColor);
+  lines[3] = sf::Vertex(pos + sf::Vector2f(0.f, 8.f * markerScale), lineColor);
 
   target.draw(circle);
   target.draw(lines);
@@ -50,6 +48,7 @@ int main() {
 
   ui::Toolbar toolbar;
   ui::PropertiesPanel propertiesPanel;
+  ui::CreateFigureModal createModal;
   ui::Tool currentTool = ui::Tool::Select;
 
   bool isDragging = false;
@@ -114,7 +113,7 @@ int main() {
     else if (tool == ui::Tool::Triangle)
       fig = std::make_unique<core::Triangle>(width, height);
     else if (tool == ui::Tool::Hexagon)
-      fig = std::make_unique<core::Hexagon>(std::min(width, height) / 2.f);
+      fig = std::make_unique<core::Hexagon>(width, height);
     else if (tool == ui::Tool::Rhombus)
       fig = std::make_unique<core::Rhombus>(width, height);
     else if (tool == ui::Tool::Trapezoid)
@@ -131,6 +130,30 @@ int main() {
     }
     return fig;
   };
+
+  // Add initial colored figures
+  {
+    std::vector<sf::Color> colors = {
+        sf::Color(255, 100, 100), sf::Color(100, 255, 100),
+        sf::Color(100, 100, 255), sf::Color(255, 255, 100),
+        sf::Color(255, 100, 255), sf::Color(100, 255, 255)};
+    std::vector<ui::Tool> tempTools = {ui::Tool::Rectangle, ui::Tool::Triangle,
+                                       ui::Tool::Hexagon,   ui::Tool::Rhombus,
+                                       ui::Tool::Trapezoid, ui::Tool::Circle};
+
+    for (size_t i = 0; i < tempTools.size(); ++i) {
+      auto fig = createFigure(tempTools[i], 150.f, 150.f);
+      fig->fillColor = colors[i];
+      // Give edges varied colors
+      for (size_t j = 0; j < fig->edges.size(); ++j) {
+        fig->edges[j].color = colors[(i + j + 1) % colors.size()];
+        fig->edges[j].width = 4.f;
+      }
+      fig->anchor =
+          sf::Vector2f(250.f + (i % 3) * 250.f, 250.f + (i / 3) * 250.f);
+      scene.addFigure(std::move(fig));
+    }
+  }
 
   while (window.isOpen()) {
     sf::Event event;
@@ -202,6 +225,25 @@ int main() {
             scene.removeFigure(scene.getSelectedFigure());
             scene.setSelectedFigure(nullptr);
           }
+        } else if (event.key.code == sf::Keyboard::Up ||
+                   event.key.code == sf::Keyboard::Down ||
+                   event.key.code == sf::Keyboard::Left ||
+                   event.key.code == sf::Keyboard::Right) {
+          if (core::Figure *fig = scene.getSelectedFigure()) {
+            float moveAmt =
+                sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) ||
+                        sf::Keyboard::isKeyPressed(sf::Keyboard::RShift)
+                    ? 10.f
+                    : 1.f;
+            if (event.key.code == sf::Keyboard::Up)
+              fig->move(sf::Vector2f(0.f, -moveAmt));
+            else if (event.key.code == sf::Keyboard::Down)
+              fig->move(sf::Vector2f(0.f, moveAmt));
+            else if (event.key.code == sf::Keyboard::Left)
+              fig->move(sf::Vector2f(-moveAmt, 0.f));
+            else if (event.key.code == sf::Keyboard::Right)
+              fig->move(sf::Vector2f(moveAmt, 0.f));
+          }
         }
       }
 
@@ -225,6 +267,11 @@ int main() {
             panStartMouse =
                 sf::Vector2f(event.mouseButton.x, event.mouseButton.y);
             panStartOrigin = viewport.worldOrigin;
+          } else if (event.mouseButton.button == sf::Mouse::Right) {
+            sf::Vector2f mousePosScreen(event.mouseButton.x,
+                                        event.mouseButton.y);
+            sf::Vector2f mousePos = viewport.screenToWorld(mousePosScreen);
+            createModal.open(mousePos); // always open on right-click
           } else if (event.mouseButton.button == sf::Mouse::Left) {
             sf::Vector2f mousePosScreen(event.mouseButton.x,
                                         event.mouseButton.y);
@@ -281,9 +328,11 @@ int main() {
               int hoveredVertex = -1;
 
               if (selFig) {
-                float dist = std::hypot(mousePos.x - selFig->anchor.x,
-                                        mousePos.y - selFig->anchor.y);
-                if (dist <= 10.f) {
+                float markerScale = 1.f / viewport.zoom;
+                sf::Vector2f absAnchor = selFig->parentOrigin + selFig->anchor;
+                float dist = std::hypot(mousePos.x - absAnchor.x,
+                                        mousePos.y - absAnchor.y);
+                if (dist <= 10.f * markerScale) {
                   hitAnchor = true;
                 }
 
@@ -294,12 +343,12 @@ int main() {
                 sf::Vector2f tc = (tl + tr) / 2.f;
                 sf::Vector2f absTc = selFig->getAbsoluteVertex(tc);
                 float rotRad = selFig->rotationAngle * M_PI / 180.f;
-                sf::Vector2f rotOffset(std::sin(rotRad) * 20.f,
-                                       -std::cos(rotRad) * 20.f);
+                sf::Vector2f rotOffset(std::sin(rotRad) * 20.f * markerScale,
+                                       -std::cos(rotRad) * 20.f * markerScale);
                 sf::Vector2f rotMarker = absTc + rotOffset;
 
                 if (std::hypot(mousePos.x - rotMarker.x,
-                               mousePos.y - rotMarker.y) <= 8.f) {
+                               mousePos.y - rotMarker.y) <= 8.f * markerScale) {
                   hitRotationMarker = true;
                 }
 
@@ -307,8 +356,8 @@ int main() {
                   const auto &verts = selFig->getVertices();
                   for (size_t i = 0; i < verts.size(); ++i) {
                     sf::Vector2f absV = selFig->getAbsoluteVertex(verts[i]);
-                    if (std::abs(mousePos.x - absV.x) <= 6.f &&
-                        std::abs(mousePos.y - absV.y) <= 6.f) {
+                    if (std::abs(mousePos.x - absV.x) <= 6.f * markerScale &&
+                        std::abs(mousePos.y - absV.y) <= 6.f * markerScale) {
                       hoveredVertex = i;
                       break;
                     }
@@ -395,8 +444,21 @@ int main() {
               sf::Vector2f mousePos = viewport.screenToWorld(
                   sf::Vector2f(event.mouseButton.x, event.mouseButton.y));
 
-              float width = std::abs(mousePos.x - createStartPos.x);
-              float height = std::abs(mousePos.y - createStartPos.y);
+              float dx = mousePos.x - createStartPos.x;
+              float dy = mousePos.y - createStartPos.y;
+              float width = std::abs(dx);
+              float height = std::abs(dy);
+
+              // Constrain to square if Shift is held
+              if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) ||
+                  sf::Keyboard::isKeyPressed(sf::Keyboard::RShift)) {
+                float maxDim = std::max(width, height);
+                width = maxDim;
+                height = maxDim;
+
+                mousePos.x = createStartPos.x + ((dx >= 0) ? maxDim : -maxDim);
+                mousePos.y = createStartPos.y + ((dy >= 0) ? maxDim : -maxDim);
+              }
 
               // Default size if very small
               if (width < 5 && height < 5) {
@@ -586,8 +648,13 @@ int main() {
                 scene.getSelectedFigure()->anchor;
             sf::Vector2f newAbsoluteAnchor = mousePos - dragOffset;
 
-            scene.getSelectedFigure()->setAnchorKeepAbsolute(
-                newAbsoluteAnchor - scene.getSelectedFigure()->parentOrigin);
+            if (propertiesPanel.m_lockAnchor) {
+              scene.getSelectedFigure()->anchor =
+                  newAbsoluteAnchor - scene.getSelectedFigure()->parentOrigin;
+            } else {
+              scene.getSelectedFigure()->setAnchorKeepAbsolute(
+                  newAbsoluteAnchor - scene.getSelectedFigure()->parentOrigin);
+            }
           } else if (isDragging && scene.getSelectedFigure()) {
             sf::Vector2f mousePos = viewport.screenToWorld(
                 sf::Vector2f(event.mouseMove.x, event.mouseMove.y));
@@ -616,9 +683,11 @@ int main() {
       sf::Vector2f cl = (tl + bl) / 2.f;
       sf::Vector2f cr = (tr + br) / 2.f;
       std::vector<sf::Vector2f> handles = {tl, tc, tr, cr, br, bc, bl, cl};
+      float markerScale = 1.f / viewport.zoom;
       for (int i = 0; i < 8; ++i) {
         sf::Vector2f absH = selFig->getAbsoluteVertex(handles[i]);
-        if (std::hypot(mousePos.x - absH.x, mousePos.y - absH.y) <= 8.f) {
+        if (std::hypot(mousePos.x - absH.x, mousePos.y - absH.y) <=
+            8.f * markerScale) {
           newHoverHandle = static_cast<ScaleHandle>(i + 1);
           break;
         }
@@ -677,6 +746,7 @@ int main() {
     // Render UI
     toolbar.render(currentTool);
     bool fitRequested = propertiesPanel.render(scene, viewport);
+    createModal.render(scene);
 
     if (fitRequested && !scene.getFigures().empty()) {
       const auto &figs = scene.getFigures();
@@ -720,8 +790,20 @@ int main() {
     ImGui::Begin("Status Bar", nullptr, statusFlags);
     sf::Vector2f mPos = viewport.screenToWorld(sf::Vector2f(
         sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y));
-    ImGui::Text("Zoom: %.0f%%   |   Cursor: (%.1f, %.1f)",
-                viewport.zoom * 100.f, mPos.x, mPos.y);
+
+    char statusText[256];
+    snprintf(statusText, sizeof(statusText),
+             "Zoom: %.0f%%   |   Cursor: (%.1f, %.1f)", viewport.zoom * 100.f,
+             mPos.x, mPos.y);
+
+    float textWidth = ImGui::CalcTextSize(statusText).x;
+    float windowWidth = ImGui::GetWindowSize().x;
+    ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
+
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
+    ImGui::TextUnformatted(statusText);
+    ImGui::PopStyleColor();
+
     ImGui::End();
     ImGui::PopStyleVar();
 
@@ -762,68 +844,88 @@ int main() {
       window.draw(grid);
     }
 
-    // Origin Indicators
-    if (showOriginAxes) {
-      sf::Vector2f activeOrigin = scene.customOriginActive
-                                      ? scene.customOriginPos
-                                      : sf::Vector2f(0.f, 0.f);
+    auto drawOrigins = [&]() {
+      // Origin Axes
+      if (showOriginAxes) {
+        sf::Vector2f activeOrigin = scene.customOriginActive
+                                        ? scene.customOriginPos
+                                        : sf::Vector2f(0.f, 0.f);
 
-      sf::VertexArray originAxes(sf::Lines, 4);
-      sf::Color axisColor(100, 100, 100, 150);
-      sf::Vector2f boundsMin = viewport.screenToWorld(sf::Vector2f(0.f, 0.f));
-      sf::Vector2f boundsMax = viewport.screenToWorld(
-          sf::Vector2f(window.getSize().x, window.getSize().y));
+        sf::VertexArray originAxes(sf::Lines, 4);
+        sf::Color axisColor(100, 100, 100, 150);
+        sf::Vector2f boundsMin = viewport.screenToWorld(sf::Vector2f(0.f, 0.f));
+        sf::Vector2f boundsMax = viewport.screenToWorld(
+            sf::Vector2f(window.getSize().x, window.getSize().y));
 
-      originAxes[0] =
-          sf::Vertex(sf::Vector2f(boundsMin.x, activeOrigin.y), axisColor);
-      originAxes[1] =
-          sf::Vertex(sf::Vector2f(boundsMax.x, activeOrigin.y), axisColor);
-      originAxes[2] =
-          sf::Vertex(sf::Vector2f(activeOrigin.x, boundsMin.y), axisColor);
-      originAxes[3] =
-          sf::Vertex(sf::Vector2f(activeOrigin.x, boundsMax.y), axisColor);
-      window.draw(originAxes);
+        originAxes[0] =
+            sf::Vertex(sf::Vector2f(boundsMin.x, activeOrigin.y), axisColor);
+        originAxes[1] =
+            sf::Vertex(sf::Vector2f(boundsMax.x, activeOrigin.y), axisColor);
+        originAxes[2] =
+            sf::Vertex(sf::Vector2f(activeOrigin.x, boundsMin.y), axisColor);
+        originAxes[3] =
+            sf::Vertex(sf::Vector2f(activeOrigin.x, boundsMax.y), axisColor);
+        window.draw(originAxes);
+      }
+
+      // Always draw Global gray Marker at (0,0) World
+      {
+        float markerScale = 1.f / viewport.zoom;
+        sf::Color crossCol(80, 80, 80);
+
+        float length = 24.f * markerScale;
+        float thickness = 2.f * markerScale;
+
+        sf::RectangleShape hLine(sf::Vector2f(length, thickness));
+        hLine.setOrigin(length / 2.f, thickness / 2.f);
+        hLine.setPosition(0.f, 0.f);
+        hLine.setFillColor(crossCol);
+
+        sf::RectangleShape vLine(sf::Vector2f(thickness, length));
+        vLine.setOrigin(thickness / 2.f, length / 2.f);
+        vLine.setPosition(0.f, 0.f);
+        vLine.setFillColor(crossCol);
+
+        window.draw(hLine);
+        window.draw(vLine);
+      }
+
+      // Draw Custom Movable Origin Marker at scene.customOriginPos
+      if (scene.customOriginActive) {
+        float markerScale = 1.f / viewport.zoom;
+        sf::Vector2f cPos = scene.customOriginPos;
+
+        sf::CircleShape circ(6.f * markerScale);
+        circ.setOrigin(6.f * markerScale, 6.f * markerScale);
+        circ.setPosition(cPos);
+        circ.setFillColor(sf::Color::Transparent);
+        circ.setOutlineColor(sf::Color(255, 50, 50));
+        circ.setOutlineThickness(1.5f * markerScale);
+        window.draw(circ);
+
+        sf::VertexArray cross(sf::Lines, 4);
+        sf::Color crossCol(255, 50, 50);
+        cross[0] = sf::Vertex(sf::Vector2f(cPos.x - 12.f * markerScale, cPos.y),
+                              crossCol);
+        cross[1] = sf::Vertex(sf::Vector2f(cPos.x + 12.f * markerScale, cPos.y),
+                              crossCol);
+        cross[2] = sf::Vertex(sf::Vector2f(cPos.x, cPos.y - 12.f * markerScale),
+                              crossCol);
+        cross[3] = sf::Vertex(sf::Vector2f(cPos.x, cPos.y + 12.f * markerScale),
+                              crossCol);
+        window.draw(cross);
+      }
+    };
+
+    if (!propertiesPanel.m_drawOriginsOverFigures) {
+      drawOrigins();
     }
 
-    // Always draw Global gray Marker at (0,0) World
-    {
-      float markerScale = 1.f / viewport.zoom;
-      sf::VertexArray cross(sf::Lines, 4);
-      sf::Color crossCol(150, 150, 150);
-      cross[0] = sf::Vertex(sf::Vector2f(-12.f * markerScale, 0.f), crossCol);
-      cross[1] = sf::Vertex(sf::Vector2f(12.f * markerScale, 0.f), crossCol);
-      cross[2] = sf::Vertex(sf::Vector2f(0.f, -12.f * markerScale), crossCol);
-      cross[3] = sf::Vertex(sf::Vector2f(0.f, 12.f * markerScale), crossCol);
-      window.draw(cross);
+    scene.drawAll(window, 1.f / viewport.zoom);
+
+    if (propertiesPanel.m_drawOriginsOverFigures) {
+      drawOrigins();
     }
-
-    // Draw Custom Movable Origin Marker at scene.customOriginPos
-    if (scene.customOriginActive) {
-      float markerScale = 1.f / viewport.zoom;
-      sf::Vector2f cPos = scene.customOriginPos;
-
-      sf::CircleShape circ(6.f * markerScale);
-      circ.setOrigin(6.f * markerScale, 6.f * markerScale);
-      circ.setPosition(cPos);
-      circ.setFillColor(sf::Color::Transparent);
-      circ.setOutlineColor(sf::Color(255, 50, 50));
-      circ.setOutlineThickness(1.5f * markerScale);
-      window.draw(circ);
-
-      sf::VertexArray cross(sf::Lines, 4);
-      sf::Color crossCol(255, 50, 50);
-      cross[0] = sf::Vertex(sf::Vector2f(cPos.x - 12.f * markerScale, cPos.y),
-                            crossCol);
-      cross[1] = sf::Vertex(sf::Vector2f(cPos.x + 12.f * markerScale, cPos.y),
-                            crossCol);
-      cross[2] = sf::Vertex(sf::Vector2f(cPos.x, cPos.y - 12.f * markerScale),
-                            crossCol);
-      cross[3] = sf::Vertex(sf::Vector2f(cPos.x, cPos.y + 12.f * markerScale),
-                            crossCol);
-      window.draw(cross);
-    }
-
-    scene.drawAll(window);
 
     // Draw Anchor Marker if figure is selected
     if (scene.getSelectedFigure()) {
@@ -849,28 +951,30 @@ int main() {
 
       if (!isNodeEditMode) {
         for (const auto &h : handles) {
-          sf::RectangleShape handle(sf::Vector2f(8.f, 8.f));
-          handle.setOrigin(4.f, 4.f);
+          sf::RectangleShape handle(
+              sf::Vector2f(8.f * markerScale, 8.f * markerScale));
+          handle.setOrigin(4.f * markerScale, 4.f * markerScale);
           handle.setPosition(scene.getSelectedFigure()->getAbsoluteVertex(h));
           handle.setRotation(scene.getSelectedFigure()->rotationAngle);
           handle.setFillColor(sf::Color::White);
           handle.setOutlineColor(sf::Color(0, 120, 215));
-          handle.setOutlineThickness(1.5f);
+          handle.setOutlineThickness(1.5f * markerScale);
           window.draw(handle);
         }
       }
 
       sf::Vector2f absTc = scene.getSelectedFigure()->getAbsoluteVertex(tc);
       float rotRad = scene.getSelectedFigure()->rotationAngle * M_PI / 180.f;
-      sf::Vector2f rotOffset(std::sin(rotRad) * 20.f, -std::cos(rotRad) * 20.f);
+      sf::Vector2f rotOffset(std::sin(rotRad) * 20.f * markerScale,
+                             -std::cos(rotRad) * 20.f * markerScale);
       sf::Vector2f rotPos = absTc + rotOffset;
 
-      sf::CircleShape rotMarker(5.f);
-      rotMarker.setOrigin(5.f, 5.f);
+      sf::CircleShape rotMarker(5.f * markerScale);
+      rotMarker.setOrigin(5.f * markerScale, 5.f * markerScale);
       rotMarker.setPosition(rotPos);
       rotMarker.setFillColor(sf::Color::White);
       rotMarker.setOutlineColor(sf::Color(0, 120, 215));
-      rotMarker.setOutlineThickness(1.5f);
+      rotMarker.setOutlineThickness(1.5f * markerScale);
       window.draw(rotMarker);
 
       sf::VertexArray rotLine(sf::Lines, 2);
@@ -881,12 +985,13 @@ int main() {
       if (isNodeEditMode) {
         const auto &verts = scene.getSelectedFigure()->getVertices();
         for (const auto &v : verts) {
-          sf::RectangleShape handle(sf::Vector2f(8.f, 8.f));
-          handle.setOrigin(4.f, 4.f);
+          sf::RectangleShape handle(
+              sf::Vector2f(8.f * markerScale, 8.f * markerScale));
+          handle.setOrigin(4.f * markerScale, 4.f * markerScale);
           handle.setPosition(scene.getSelectedFigure()->getAbsoluteVertex(v));
           handle.setFillColor(sf::Color::White);
           handle.setOutlineColor(sf::Color(0, 120, 215));
-          handle.setOutlineThickness(1.5f);
+          handle.setOutlineThickness(1.5f * markerScale);
           window.draw(handle);
         }
       }
@@ -896,11 +1001,27 @@ int main() {
     if (isCreating && creatingStep == 1 && currentTool != ui::Tool::Select) {
       sf::Vector2f mousePos = viewport.screenToWorld(sf::Vector2f(
           sf::Mouse::getPosition(window).x, sf::Mouse::getPosition(window).y));
+
+      float dx = mousePos.x - createStartPos.x;
+      float dy = mousePos.y - createStartPos.y;
+      float width = std::abs(dx);
+      float height = std::abs(dy);
+
+      // Constrain preview to square if Shift is held
+      if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) ||
+          sf::Keyboard::isKeyPressed(sf::Keyboard::RShift)) {
+        float maxDim = std::max(width, height);
+        width = maxDim;
+        height = maxDim;
+
+        mousePos.x = createStartPos.x + ((dx >= 0) ? maxDim : -maxDim);
+        mousePos.y = createStartPos.y + ((dy >= 0) ? maxDim : -maxDim);
+      }
+
       sf::RectangleShape preview;
       preview.setPosition(std::min(createStartPos.x, mousePos.x),
                           std::min(createStartPos.y, mousePos.y));
-      preview.setSize(sf::Vector2f(std::abs(mousePos.x - createStartPos.x),
-                                   std::abs(mousePos.y - createStartPos.y)));
+      preview.setSize(sf::Vector2f(width, height));
       preview.setFillColor(sf::Color(150, 150, 150, 100)); // Semi-transparent
       preview.setOutlineColor(sf::Color(100, 100, 100, 200));
       preview.setOutlineThickness(1.f);
@@ -908,6 +1029,7 @@ int main() {
     }
 
     window.setView(oldView);
+    window.resetGLStates();
     ImGui::SFML::Render(window);
     window.display();
   }
