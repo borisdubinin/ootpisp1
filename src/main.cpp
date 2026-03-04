@@ -111,7 +111,7 @@ int main() {
     else if (tool == ui::Tool::Triangle)
       fig = std::make_unique<core::Triangle>(width, height);
     else if (tool == ui::Tool::Hexagon)
-      fig = std::make_unique<core::Hexagon>(std::min(width, height) / 2.f);
+      fig = std::make_unique<core::Hexagon>(width, height);
     else if (tool == ui::Tool::Rhombus)
       fig = std::make_unique<core::Rhombus>(width, height);
     else if (tool == ui::Tool::Trapezoid)

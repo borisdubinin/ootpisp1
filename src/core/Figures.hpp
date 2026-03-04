@@ -24,10 +24,11 @@ private:
 
 class Hexagon : public Figure {
 public:
-  Hexagon(float radius);
+  Hexagon(float width, float height);
 
 private:
-  float m_radius;
+  float m_width;
+  float m_height;
 };
 
 class Rhombus : public Figure {

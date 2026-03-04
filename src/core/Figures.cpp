@@ -22,12 +22,13 @@ Triangle::Triangle(float base, float height) : m_base(base), m_height(height) {
 }
 
 // Hexagon
-Hexagon::Hexagon(float radius) : m_radius(radius) {
+Hexagon::Hexagon(float width, float height) : m_width(width), m_height(height) {
   edges.resize(6);
   m_vertices.resize(6);
   for (int i = 0; i < 6; ++i) {
     float angle = i * 60.f * 3.14159f / 180.f;
-    m_vertices[i] = {m_radius * std::cos(angle), m_radius * std::sin(angle)};
+    m_vertices[i] = {(m_width / 2.f) * std::cos(angle),
+                     (m_height / 2.f) * std::sin(angle)};
   }
 }
 
