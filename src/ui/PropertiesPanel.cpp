@@ -254,7 +254,7 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport, std::
           }
         }
 
-        bool anyLengthChanged = false;
+        bool anyLengthChangedManually = false;
 
         for (size_t i = 0; i < selectedFigure->edges.size(); ++i) {
           ImGui::PushID(static_cast<int>(i));
@@ -286,7 +286,7 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport, std::
               if (lockedSides[i]) {
                 lockedLengths[i] = displayLengths[i];
               }
-              anyLengthChanged = true;
+              anyLengthChangedManually = true;
             }
           }
 
@@ -322,7 +322,7 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport, std::
           ImGui::Spacing();
         }
 
-        if (anyLengthChanged) {
+        if (anyLengthChangedManually) {
           selectedFigure->applyScale();
           bool anyLockedNow = false;
           for (bool l : selectedFigure->lockedSides) {

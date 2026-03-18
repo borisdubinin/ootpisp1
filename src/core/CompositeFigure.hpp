@@ -61,6 +61,9 @@ public:
     void applyScale() override;
     bool hasUniformEdge() const override;
 
+    void resetAnchor() override;
+    void setAnchorKeepAbsolute(sf::Vector2f newAnchor) override;
+
     // Angle modification for polylines
     void setEdgeAngle(int edgeIdx, float angleDeg);
     float getEdgeAngle(int edgeIdx) const;

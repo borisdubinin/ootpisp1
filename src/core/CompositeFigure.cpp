@@ -373,6 +373,50 @@ void CompositeFigure::applyScale() {
     scale = {1.f, 1.f};
 }
 
+void CompositeFigure::resetAnchor() {
+    sf::FloatRect bounds = getLocalBoundingBox();
+    sf::Vector2f localCenter(bounds.left + bounds.width / 2.0f,
+        bounds.top + bounds.height / 2.0f);
+
+    if (std::abs(localCenter.x) < 0.001f && std::abs(localCenter.y) < 0.001f) {
+        return;
+    }
+
+    sf::Vector2f rotated = math::rotate(
+        sf::Vector2f(localCenter.x * scale.x, localCenter.y * scale.y),
+        rotationAngle * math::DEG_TO_RAD);
+
+    anchor += rotated;
+
+    for (auto& v : m_vertices) {
+        v -= localCenter;
+    }
+    
+    for (auto& child : children) {
+        child.localOffset -= localCenter;
+    }
+}
+
+void CompositeFigure::setAnchorKeepAbsolute(sf::Vector2f newAnchor) {
+    if (math::length(newAnchor - anchor) < 0.001f) {
+        return;
+    }
+
+    sf::Vector2f oldAnchor = anchor;
+    Figure::setAnchorKeepAbsolute(newAnchor);
+
+    sf::Vector2f deltaA = newAnchor - oldAnchor;
+    sf::Vector2f rotated = math::rotate(deltaA, -rotationAngle * math::DEG_TO_RAD);
+
+    float vx = (scale.x != 0.f) ? (rotated.x / scale.x) : 0.f;
+    float vy = (scale.y != 0.f) ? (rotated.y / scale.y) : 0.f;
+
+    for (auto& child : children) {
+        child.localOffset.x -= vx;
+        child.localOffset.y -= vy;
+    }
+}
+
 bool CompositeFigure::hasUniformEdge() const {
     return preset == Preset::Circle;
 }

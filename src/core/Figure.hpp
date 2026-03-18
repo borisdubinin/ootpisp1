@@ -61,11 +61,11 @@ public:
 
   // Reset the anchor to the center of the local bounding box without moving the
   // figure
-  void resetAnchor();
+  virtual void resetAnchor();
 
   // Set a new anchor point while keeping the figure's absolute position
   // invariant
-  void setAnchorKeepAbsolute(sf::Vector2f newAnchor);
+  virtual void setAnchorKeepAbsolute(sf::Vector2f newAnchor);
 
   // Apply the current scale factor permanently to the figure's vertices
   // and reset the scale vector to (1, 1).
