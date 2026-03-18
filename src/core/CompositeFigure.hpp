@@ -21,6 +21,7 @@ public:
 
     std::string figureName;
     Preset preset = Preset::None;
+    bool isSolidGroup = false; // subfigures must touch; can slide but not separate
 
     struct Child {
         std::unique_ptr<Figure> figure;
@@ -33,6 +34,10 @@ public:
     bool moveChild(int fromIdx, int toIdx);
 
     Figure* hitTestChild(sf::Vector2f point) const;
+
+    // For solid groups: snap the given child so it touches at least one sibling.
+    // Returns true if a snap was applied.
+    bool snapChildToSiblings(Figure* child);
 
     CompositeFigure() = default;
     explicit CompositeFigure(std::vector<sf::Vector2f> vertices, std::string name = "Custom");

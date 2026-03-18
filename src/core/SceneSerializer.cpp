@@ -71,6 +71,7 @@ void SceneSerializer::writeCommonFields(std::ostream& out, const CompositeFigure
     std::string pad(indent, ' ');
     out << pad << "name " << fig->figureName << "\n";
     out << pad << "preset " << static_cast<int>(fig->preset) << "\n";
+    out << pad << "solid_group " << (fig->isSolidGroup ? 1 : 0) << "\n";
     out << pad << "anchor " << fig->anchor.x << " " << fig->anchor.y << "\n";
     out << pad << "parent_origin " << fig->parentOrigin.x << " " << fig->parentOrigin.y << "\n";
     out << pad << "rotation " << fig->rotationAngle << "\n";
@@ -117,6 +118,9 @@ void SceneSerializer::readCommonFields(std::istream& in, CompositeFigure* fig) {
             in >> fig->rotationAngle;
         } else if (prop == "scale") {
             in >> fig->scale.x >> fig->scale.y;
+        } else if (prop == "solid_group") {
+            int v; in >> v;
+            fig->isSolidGroup = (v != 0);
         } else if (prop == "fill") {
             int r, g, b, a;
             in >> r >> g >> b >> a;

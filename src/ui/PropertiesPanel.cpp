@@ -382,6 +382,15 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport, std::
           ImGui::Separator();
           ImGui::Text("Name: %s", cf->figureName.c_str());
           ImGui::Text("Child Figures (%zu)", cf->children.size());
+
+          // Solid Group toggle
+          bool isSolid = cf->isSolidGroup;
+          if (ImGui::Checkbox("Solid Group", &isSolid)) {
+              cf->isSolidGroup = isSolid;
+          }
+          if (ImGui::IsItemHovered()) {
+              ImGui::SetTooltip("Subfigures snap to each other —\ncannot be pulled apart.");
+          }
           
           if (ImGui::Button("Save as Toolbar Template", ImVec2(-1, 0))) {
               ImGui::OpenPopup("Save Template");

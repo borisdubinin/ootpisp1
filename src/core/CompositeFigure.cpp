@@ -192,6 +192,71 @@ Figure* CompositeFigure::hitTestChild(sf::Vector2f point) const {
     return nullptr;
 }
 
+bool CompositeFigure::snapChildToSiblings(Figure* child) {
+    if (children.size() < 2) return true;
+
+    // Get the child's AABB in group-local coords (using anchor as center)
+    sf::FloatRect childBounds = child->getBoundingBox();
+
+    float bestSnapDist = 1e18f;
+    sf::Vector2f bestSnap = {child->anchor.x, child->anchor.y};
+    bool alreadyTouching = false;
+
+    const float kTouchThreshold = 2.f; // pixels; "already touching" margin
+
+    for (const auto& c : children) {
+        if (c.figure.get() == child) continue;
+        sf::FloatRect sibBounds = c.figure->getBoundingBox();
+
+        // Check if already touching (overlap or edge-touching)
+        bool overlapX = childBounds.left < sibBounds.left + sibBounds.width &&
+                        childBounds.left + childBounds.width > sibBounds.left;
+        bool overlapY = childBounds.top < sibBounds.top + sibBounds.height &&
+                        childBounds.top + childBounds.height > sibBounds.top;
+
+        float gapRight  = sibBounds.left - (childBounds.left + childBounds.width);
+        float gapLeft   = childBounds.left - (sibBounds.left + sibBounds.width);
+        float gapBottom = sibBounds.top - (childBounds.top + childBounds.height);
+        float gapTop    = childBounds.top - (sibBounds.top + sibBounds.height);
+
+        if (overlapX && overlapY) { alreadyTouching = true; break; }
+        if (overlapX && (std::abs(gapBottom) < kTouchThreshold || std::abs(gapTop) < kTouchThreshold)) { alreadyTouching = true; break; }
+        if (overlapY && (std::abs(gapRight) < kTouchThreshold || std::abs(gapLeft)  < kTouchThreshold)) { alreadyTouching = true; break; }
+
+        // --- Try 4 snap candidates: snap child to each face of sibling ---
+        // For each candidate, compute the required anchor delta and pick the closest
+        auto trySnap = [&](sf::Vector2f delta) {
+            float dist = std::hypot(delta.x, delta.y);
+            if (dist < bestSnapDist) {
+                bestSnapDist = dist;
+                bestSnap = {child->anchor.x + delta.x, child->anchor.y + delta.y};
+            }
+        };
+
+        // Snap child's right edge to sibling's left edge (only if Y overlaps)
+        if (overlapY) {
+            trySnap({gapRight, 0.f});  // move child right
+            trySnap({-gapLeft, 0.f}); // move child left
+        }
+        // Snap child's bottom edge to sibling's top edge (only if X overlaps)
+        if (overlapX) {
+            trySnap({0.f, gapBottom}); // move child down
+            trySnap({0.f, -gapTop});   // move child up
+        }
+        // Also try corner snaps (both axes)
+        trySnap({gapRight,  gapBottom});
+        trySnap({gapRight,  -gapTop});
+        trySnap({-gapLeft, gapBottom});
+        trySnap({-gapLeft, -gapTop});
+    }
+
+    if (alreadyTouching) return true;
+
+    // Apply the best snap
+    child->anchor = bestSnap;
+    return false;
+}
+
 const std::vector<sf::Vector2f>& CompositeFigure::getVertices() const {
     if (children.empty()) return m_vertices;
 
