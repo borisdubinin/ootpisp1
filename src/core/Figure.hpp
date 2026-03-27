@@ -103,8 +103,10 @@ public:
   std::vector<bool> lockedSides;
   std::vector<float> lockedLengths;
 
-  // Generic geometric solver to force exact side lengths regardless of shape
-  // type
+  std::vector<bool> lockedAngles;
+  std::vector<float> lockedAngleValues;
+
+  // Generic geometric solver to force exact side lengths regardless of shape type
   void applyGenericSideLengths(const std::vector<float> &lengths);
 
 protected:

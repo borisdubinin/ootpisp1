@@ -78,7 +78,7 @@ namespace core {
         }
         float orientation = (area >= 0.f) ? 1.f : -1.f;
         
-        const float MITER_LIMIT = 4.0f;
+        const float MITER_LIMIT = 15.0f;
 
         for (size_t i = 0; i < n; ++i) {
             size_t prev = (i + n - 1) % n;
@@ -317,61 +317,48 @@ namespace core {
         
         struct Joint {
             sf::Vector2f innerPt;
-            sf::Vector2f outerPt1;
-            sf::Vector2f outerPt2;
-            bool isBevel;
+            sf::Vector2f outerPt;
         };
         std::vector<Joint> joints(n);
-
-        const float MITER_LIMIT = 4.0f;
 
         for (size_t i = 0; i < n; ++i) {
             size_t prev = (i + n - 1) % n;
 
             float wPrev = edges[prev < edges.size() ? prev : 0].width * currentScale;
-            float wCur = edges[i < edges.size() ? i : 0].width * currentScale;
+            float wCur  = edges[i   < edges.size() ? i   : 0].width * currentScale;
 
             if (wPrev <= 0.001f && wCur <= 0.001f) {
-                joints[i] = {V[i], V[i], V[i], false};
+                joints[i] = {V[i], V[i]};
                 continue;
             }
-            
+
             sf::Vector2f dirPrev = edgeDirs[prev];
-            sf::Vector2f dirCur = edgeDirs[i];
+            sf::Vector2f dirCur  = edgeDirs[i];
             float crossDirs = dirPrev.x * dirCur.y - dirPrev.y * dirCur.x;
             float turn = orientation * crossDirs;
 
             sf::Vector2f outerP1 = V[prev] - edgeNormals[prev] * wPrev * orientation;
-            sf::Vector2f outerP2 = V[i] - edgeNormals[i] * wCur * orientation;
-            
-            sf::Vector2f miterOuter;
-            bool hasMiterOuter = lineIntersection(outerP1, dirPrev, outerP2, dirCur, miterOuter);
-            sf::Vector2f miterInner = V[i];
+            sf::Vector2f outerP2 = V[i]    - edgeNormals[i]    * wCur  * orientation;
 
-            if (!hasMiterOuter) {
-                sf::Vector2f pt = V[i] - edgeNormals[i] * wCur * orientation;
-                joints[i] = {miterInner, pt, pt, false};
-            } else {
+            sf::Vector2f miterOuter;
+            bool hasMiter = lineIntersection(outerP1, dirPrev, outerP2, dirCur, miterOuter);
+
+            if (!hasMiter) {
+                // Parallel edges — just use normal offset
+                joints[i] = {V[i], V[i] - edgeNormals[i] * wCur * orientation};
+            } else if (turn <= 0.f) {
+                // Concave corner: intersection is behind the vertex, clamp it
                 float miterLen = getLength(miterOuter - V[i]);
                 float maxW = std::max(wPrev, wCur);
-
-                if (turn > 0.f) { // Convex corner
-                    if (miterLen > MITER_LIMIT * maxW) {
-                        sf::Vector2f bevel1 = V[i] - edgeNormals[prev] * wPrev * orientation;
-                        sf::Vector2f bevel2 = V[i] - edgeNormals[i] * wCur * orientation;
-                        joints[i] = {miterInner, bevel1, bevel2, true};
-                    } else {
-                        joints[i] = {miterInner, miterOuter, miterOuter, false};
-                    }
-                } else { // Concave corner
-                    if (miterLen > MITER_LIMIT * maxW) {
-                        sf::Vector2f miterDir = normalize(miterOuter - V[i]);
-                        sf::Vector2f clippedMiter = V[i] + miterDir * (MITER_LIMIT * maxW);
-                        joints[i] = {miterInner, clippedMiter, clippedMiter, false};
-                    } else {
-                        joints[i] = {miterInner, miterOuter, miterOuter, false};
-                    }
+                const float CONCAVE_LIMIT = 10.0f;
+                if (miterLen > CONCAVE_LIMIT * maxW) {
+                    sf::Vector2f miterDir = normalize(miterOuter - V[i]);
+                    miterOuter = V[i] + miterDir * (CONCAVE_LIMIT * maxW);
                 }
+                joints[i] = {V[i], miterOuter};
+            } else {
+                // Convex corner: pure miter, no limit, always sharp
+                joints[i] = {V[i], miterOuter};
             }
         }
 
@@ -383,33 +370,13 @@ namespace core {
             if (edges[eIdx].width <= 0.001f)
                 continue;
 
-            sf::ConvexShape edgeQuad;
-
-            if (joints[i].isBevel) {
-                edgeQuad.setPointCount(4);
-                edgeQuad.setPoint(0, joints[i].innerPt);
-                edgeQuad.setPoint(1, joints[i].outerPt2);
-                edgeQuad.setPoint(2, joints[next].outerPt1);
-                edgeQuad.setPoint(3, joints[next].innerPt);
-            } else {
-                edgeQuad.setPointCount(4);
-                edgeQuad.setPoint(0, joints[i].innerPt);
-                edgeQuad.setPoint(1, joints[i].outerPt1);
-                edgeQuad.setPoint(2, joints[next].outerPt1);
-                edgeQuad.setPoint(3, joints[next].innerPt);
-            }
-
+            sf::ConvexShape edgeQuad(4);
+            edgeQuad.setPoint(0, joints[i].innerPt);
+            edgeQuad.setPoint(1, joints[i].outerPt);
+            edgeQuad.setPoint(2, joints[next].outerPt);
+            edgeQuad.setPoint(3, joints[next].innerPt);
             edgeQuad.setFillColor(edges[eIdx].color);
             target.draw(edgeQuad);
-
-            if (joints[i].isBevel) {
-                sf::ConvexShape bevelTri(3);
-                bevelTri.setPoint(0, joints[i].innerPt);
-                bevelTri.setPoint(1, joints[i].outerPt1);
-                bevelTri.setPoint(2, joints[i].outerPt2);
-                bevelTri.setFillColor(edges[eIdx].color);
-                target.draw(bevelTri);
-            }
         }
     }
 
