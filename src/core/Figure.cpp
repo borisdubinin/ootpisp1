@@ -85,24 +85,42 @@ namespace core {
             float wPrev = edges[prev < edges.size() ? prev : 0].width * currentScale;
             float wCur = edges[i < edges.size() ? i : 0].width * currentScale;
 
-            if (wPrev <= 0.001f && wCur <= 0.001f) continue;
+            if (wPrev <= 0.001f && wCur <= 0.001f) {
+                pts.push_back(V[i]);
+                continue;
+            }
             
-            sf::Vector2f outerLineP1 = V[prev] - edgeNormals[prev] * wPrev * orientation;
-            sf::Vector2f outerLineP2 = V[i] - edgeNormals[i] * wCur * orientation;
+            sf::Vector2f dirPrev = edgeDirs[prev];
+            sf::Vector2f dirCur = edgeDirs[i];
+            float crossDirs = dirPrev.x * dirCur.y - dirPrev.y * dirCur.x;
+            float turn = orientation * crossDirs;
+
+            sf::Vector2f outerP1 = V[prev] - edgeNormals[prev] * wPrev * orientation;
+            sf::Vector2f outerP2 = V[i] - edgeNormals[i] * wCur * orientation;
             
             sf::Vector2f miterOuter;
-            bool hasMiterOuter = core::geometry::lineIntersection(outerLineP1, edgeDirs[prev], outerLineP2, edgeDirs[i], miterOuter);
+            bool hasMiterOuter = core::geometry::lineIntersection(outerP1, dirPrev, outerP2, dirCur, miterOuter);
 
             if (!hasMiterOuter) {
                 pts.push_back(V[i] - edgeNormals[i] * wCur * orientation);
             } else {
                 float miterLen = math::length(miterOuter - V[i]);
                 float maxW = std::max(wPrev, wCur);
-                if (miterLen > maxW * MITER_LIMIT) {
-                    pts.push_back(V[i] - edgeNormals[prev] * wPrev * orientation);
-                    pts.push_back(V[i] - edgeNormals[i] * wCur * orientation);
-                } else {
-                    pts.push_back(miterOuter);
+
+                if (turn > 0.f) { // Convex corner
+                    if (miterLen > MITER_LIMIT * maxW) {
+                        pts.push_back(V[i] - edgeNormals[prev] * wPrev * orientation);
+                        pts.push_back(V[i] - edgeNormals[i] * wCur * orientation);
+                    } else {
+                        pts.push_back(miterOuter);
+                    }
+                } else { // Concave corner
+                    if (miterLen > MITER_LIMIT * maxW) {
+                        sf::Vector2f miterDir = math::normalize(miterOuter - V[i]);
+                        pts.push_back(V[i] + miterDir * (MITER_LIMIT * maxW));
+                    } else {
+                        pts.push_back(miterOuter);
+                    }
                 }
             }
         }
@@ -317,44 +335,42 @@ namespace core {
                 joints[i] = {V[i], V[i], V[i], false};
                 continue;
             }
-
-            // To draw the stroke completely OUTSIDE the shape:
-            // edgeNormals point INSIDE the shape if CW, OUTSIDE if CCW.
-            // Multiplying by orientation fixes this so -normal*orientation points strictly OUTWARDS.
             
-            sf::Vector2f innerLineP1 = V[prev];
-            sf::Vector2f innerLineP2 = V[i];
+            sf::Vector2f dirPrev = edgeDirs[prev];
+            sf::Vector2f dirCur = edgeDirs[i];
+            float crossDirs = dirPrev.x * dirCur.y - dirPrev.y * dirCur.x;
+            float turn = orientation * crossDirs;
+
+            sf::Vector2f outerP1 = V[prev] - edgeNormals[prev] * wPrev * orientation;
+            sf::Vector2f outerP2 = V[i] - edgeNormals[i] * wCur * orientation;
             
-            sf::Vector2f outerLineP1 = V[prev] - edgeNormals[prev] * wPrev * orientation;
-            sf::Vector2f outerLineD1 = edgeDirs[prev];
-
-            sf::Vector2f outerLineP2 = V[i] - edgeNormals[i] * wCur * orientation;
-            sf::Vector2f outerLineD2 = edgeDirs[i];
-
             sf::Vector2f miterOuter;
-            sf::Vector2f miterInner;
+            bool hasMiterOuter = lineIntersection(outerP1, dirPrev, outerP2, dirCur, miterOuter);
+            sf::Vector2f miterInner = V[i];
 
-            // hasMiterOuter = intersection of the OUTSIDE shifted lines (the exterior spike)
-            bool hasMiterOuter = lineIntersection(outerLineP1, outerLineD1, outerLineP2,
-                                                  outerLineD2, miterOuter);
-            // hasMiterInner = intersection of the exact inside polygon lines (exactly V[i])
-            bool hasMiterInner = lineIntersection(innerLineP1, outerLineD1, innerLineP2,
-                                                  outerLineD2, miterInner);
-
-            if (!hasMiterOuter || !hasMiterInner) {
-                miterOuter = V[i] - edgeNormals[i] * wCur * orientation;
-                miterInner = V[i];
-                joints[i] = {miterInner, miterOuter, miterOuter, false};
+            if (!hasMiterOuter) {
+                sf::Vector2f pt = V[i] - edgeNormals[i] * wCur * orientation;
+                joints[i] = {miterInner, pt, pt, false};
             } else {
                 float miterLen = getLength(miterOuter - V[i]);
                 float maxW = std::max(wPrev, wCur);
-                if (miterLen > maxW * MITER_LIMIT) {
-                    // Bevel the exterior spike by capping it
-                    sf::Vector2f bevelOuter1 = V[i] - edgeNormals[prev] * wPrev * orientation;
-                    sf::Vector2f bevelOuter2 = V[i] - edgeNormals[i] * wCur * orientation;
-                    joints[i] = {miterInner, bevelOuter1, bevelOuter2, true};
-                } else {
-                    joints[i] = {miterInner, miterOuter, miterOuter, false};
+
+                if (turn > 0.f) { // Convex corner
+                    if (miterLen > MITER_LIMIT * maxW) {
+                        sf::Vector2f bevel1 = V[i] - edgeNormals[prev] * wPrev * orientation;
+                        sf::Vector2f bevel2 = V[i] - edgeNormals[i] * wCur * orientation;
+                        joints[i] = {miterInner, bevel1, bevel2, true};
+                    } else {
+                        joints[i] = {miterInner, miterOuter, miterOuter, false};
+                    }
+                } else { // Concave corner
+                    if (miterLen > MITER_LIMIT * maxW) {
+                        sf::Vector2f miterDir = normalize(miterOuter - V[i]);
+                        sf::Vector2f clippedMiter = V[i] + miterDir * (MITER_LIMIT * maxW);
+                        joints[i] = {miterInner, clippedMiter, clippedMiter, false};
+                    } else {
+                        joints[i] = {miterInner, miterOuter, miterOuter, false};
+                    }
                 }
             }
         }
