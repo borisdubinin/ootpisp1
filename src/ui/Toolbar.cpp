@@ -127,6 +127,10 @@ bool Toolbar::render(Tool &currentTool, core::Scene& scene, int& selectedCustomT
           }
           ImGui::EndCombo();
       }
+      ImGui::SameLine();
+      if (ImGui::Button("Manage")) {
+          showCustomFigManager = !showCustomFigManager;
+      }
   }
 
   ImGui::End();

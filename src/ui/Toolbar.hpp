@@ -31,6 +31,7 @@ public:
   };
 
   std::vector<CustomTool> customTools;
+  bool showCustomFigManager = false;
 
   // Renders the toolbar and returns true if the tool changed
   bool render(Tool &currentTool, core::Scene& scene, int& selectedCustomToolId);

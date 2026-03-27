@@ -27,6 +27,7 @@ private:
   bool m_open = false;
   sf::Vector2f m_createPos;
   int m_figureType = 0;
+  char m_customName[256] = "";
 
   // For circle only
   float m_radiusX = 50.f;

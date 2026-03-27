@@ -977,6 +977,50 @@ int main() {
     layerPanel.render(scene);
     createModal.render(scene, toolbar.customTools, userRegistry);
 
+    if (toolbar.showCustomFigManager) {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(300, 200), ImVec2(600, 800));
+        ImGui::Begin("Manage Custom Figures", &toolbar.showCustomFigManager);
+        for (size_t i = 0; i < userRegistry.size(); ++i) {
+            ImGui::PushID(i);
+            char nameBuf[256];
+            std::string currentName = userRegistry[i]->typeName() == "polyline" ? ((core::PolylineFigure*)userRegistry[i].get())->figureName : 
+                                     (userRegistry[i]->typeName() == "composite" ? ((core::CompositeFigure*)userRegistry[i].get())->figureName : "Custom");
+            strncpy(nameBuf, currentName.c_str(), sizeof(nameBuf) - 1);
+            nameBuf[sizeof(nameBuf)-1] = '\0';
+            
+            ImGui::SetNextItemWidth(-100);
+            if (ImGui::InputText("##Name", nameBuf, sizeof(nameBuf))) {
+               if (userRegistry[i]->typeName() == "polyline") ((core::PolylineFigure*)userRegistry[i].get())->figureName = nameBuf;
+               else if (userRegistry[i]->typeName() == "composite") ((core::CompositeFigure*)userRegistry[i].get())->figureName = nameBuf;
+               if (i < toolbar.customTools.size()) {
+                   toolbar.customTools[i].name = nameBuf;
+               }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Delete", ImVec2(80, 0))) {
+                userRegistry.erase(userRegistry.begin() + i);
+                if (i < toolbar.customTools.size()) {
+                    toolbar.customTools.erase(toolbar.customTools.begin() + i);
+                }
+                if (selectedCustomToolId == i) {
+                    currentTool = ui::Tool::Select;
+                    selectedCustomToolId = -1;
+                } else if (selectedCustomToolId > (int)i) {
+                    selectedCustomToolId--;
+                }
+                for (size_t j = i; j < toolbar.customTools.size(); ++j) {
+                    toolbar.customTools[j].customId = j;
+                }
+                --i;
+            }
+            ImGui::PopID();
+        }
+        if (userRegistry.empty()) {
+            ImGui::TextDisabled("No custom figures saved.");
+        }
+        ImGui::End();
+    }
+
     if (currentTool != ui::Tool::CompoundSelect) {
         compoundSelection.clear();
     }

@@ -42,24 +42,27 @@ void CreateFigureModal::reinitEdges() {
 }
 
 std::unique_ptr<core::Figure> CreateFigureModal::createConfiguredFigure(const std::vector<std::unique_ptr<core::Figure>>& userRegistry) {
-  if (m_figureType >= 6) {
-      int customIdx = m_figureType - 6;
-      if (customIdx >= 0 && customIdx < (int)userRegistry.size()) {
-          return userRegistry[customIdx]->clone();
-      }
-      return nullptr;
-  }
-
   std::unique_ptr<core::Figure> fig;
   std::vector<float> lengths;
   for (auto &e : m_edges)
     lengths.push_back(e.length);
 
-  switch (m_figureType) {
-  case 0: { // Rectangle
-    fig = std::make_unique<core::Rectangle>(lengths[0], lengths[3]);
-    break;
-  }
+  if (m_figureType >= 6) {
+      int customIdx = m_figureType - 6;
+      if (customIdx >= 0 && customIdx < (int)userRegistry.size()) {
+          fig = userRegistry[customIdx]->clone();
+          if (fig->typeName() == "polyline") {
+             ((core::PolylineFigure*)fig.get())->figureName = m_customName;
+          } else if (fig->typeName() == "composite") {
+             ((core::CompositeFigure*)fig.get())->figureName = m_customName;
+          }
+      }
+  } else {
+      switch (m_figureType) {
+      case 0: { // Rectangle
+        fig = std::make_unique<core::Rectangle>(lengths[0], lengths[3]);
+        break;
+      }
   case 1: { // Triangle — build default then adjust
     fig = std::make_unique<core::Triangle>(lengths[0], 100.f);
     break;
@@ -87,6 +90,7 @@ std::unique_ptr<core::Figure> CreateFigureModal::createConfiguredFigure(const st
   case 5: { // Circle
     fig = std::make_unique<core::Circle>(m_radiusX, m_radiusY);
     break;
+  }
   }
   }
 
@@ -133,8 +137,11 @@ static const char *getSideName(int figureType, int idx) {
     return idx < 4 ? rho4[idx] : "?";
   case 4:
     return idx < 4 ? trap4[idx] : "?";
-  default:
-    return "Outline";
+  default: {
+    static char buf[32];
+    snprintf(buf, sizeof(buf), "Side %d", idx + 1);
+    return buf;
+  }
   }
 }
 
@@ -161,7 +168,31 @@ void CreateFigureModal::render(core::Scene &scene, const std::vector<Toolbar::Cu
           if (m_figureType < 6) {
               reinitEdges();
           } else {
-              m_edges.clear();
+              int customIdx = m_figureType - 6;
+              if (customIdx >= 0 && customIdx < (int)userRegistry.size()) {
+                  const auto& regFig = userRegistry[customIdx];
+                  m_edges.clear();
+                  m_edges.resize(regFig->edges.size());
+                  std::vector<float> lengths = regFig->getSideLengths();
+                  for (size_t i = 0; i < m_edges.size(); ++i) {
+                      m_edges[i].length = (i < lengths.size()) ? lengths[i] : 100.f;
+                      m_edges[i].width = regFig->edges[i].width;
+                      m_edges[i].color[0] = regFig->edges[i].color.r / 255.f;
+                      m_edges[i].color[1] = regFig->edges[i].color.g / 255.f;
+                      m_edges[i].color[2] = regFig->edges[i].color.b / 255.f;
+                      m_edges[i].color[3] = regFig->edges[i].color.a / 255.f;
+                  }
+                  m_fillColor[0] = regFig->fillColor.r / 255.f;
+                  m_fillColor[1] = regFig->fillColor.g / 255.f;
+                  m_fillColor[2] = regFig->fillColor.b / 255.f;
+                  m_fillColor[3] = regFig->fillColor.a / 255.f;
+                  
+                  if (customIdx < (int)customTools.size()) {
+                      strncpy(m_customName, customTools[customIdx].name.c_str(), sizeof(m_customName) - 1);
+                  }
+              } else {
+                  m_edges.clear();
+              }
           }
       }
     }
@@ -170,10 +201,12 @@ void CreateFigureModal::render(core::Scene &scene, const std::vector<Toolbar::Cu
     
     if (m_figureType >= 6) {
         ImGui::Text("Custom Figure: %s", allNames[m_figureType]);
-        ImGui::TextDisabled("Geometric adjustments are not available for custom templates.");
-    } else {
-        ImGui::Text("Appearance");
-        ImGui::ColorEdit4("Fill Color", m_fillColor);
+        ImGui::InputText("Instance Name", m_customName, sizeof(m_customName));
+        ImGui::Separator();
+    }
+    
+    ImGui::Text("Appearance");
+    ImGui::ColorEdit4("Fill Color", m_fillColor);
 
         ImGui::Separator();
 
@@ -229,7 +262,6 @@ void CreateFigureModal::render(core::Scene &scene, const std::vector<Toolbar::Cu
       }
       ImGui::Columns(1);
       ImGui::EndChild();
-    }
     }
 
     ImGui::Separator();
