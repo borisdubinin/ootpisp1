@@ -83,45 +83,40 @@ namespace core {
         for (size_t i = 0; i < n; ++i) {
             size_t prev = (i + n - 1) % n;
             float wPrev = edges[prev < edges.size() ? prev : 0].width * currentScale;
-            float wCur = edges[i < edges.size() ? i : 0].width * currentScale;
+            float wCur  = edges[i   < edges.size() ? i   : 0].width * currentScale;
 
             if (wPrev <= 0.001f && wCur <= 0.001f) {
                 pts.push_back(V[i]);
                 continue;
             }
-            
+
             sf::Vector2f dirPrev = edgeDirs[prev];
-            sf::Vector2f dirCur = edgeDirs[i];
+            sf::Vector2f dirCur  = edgeDirs[i];
             float crossDirs = dirPrev.x * dirCur.y - dirPrev.y * dirCur.x;
             float turn = orientation * crossDirs;
 
             sf::Vector2f outerP1 = V[prev] - edgeNormals[prev] * wPrev * orientation;
-            sf::Vector2f outerP2 = V[i] - edgeNormals[i] * wCur * orientation;
-            
-            sf::Vector2f miterOuter;
-            bool hasMiterOuter = core::geometry::lineIntersection(outerP1, dirPrev, outerP2, dirCur, miterOuter);
+            sf::Vector2f outerP2 = V[i]    - edgeNormals[i]    * wCur  * orientation;
 
-            if (!hasMiterOuter) {
+            sf::Vector2f miterOuter;
+            bool hasMiter = core::geometry::lineIntersection(outerP1, dirPrev, outerP2, dirCur, miterOuter);
+
+            if (!hasMiter) {
                 pts.push_back(V[i] - edgeNormals[i] * wCur * orientation);
-            } else {
+            } else if (turn <= 0.f) {
+                // Concave corner
                 float miterLen = math::length(miterOuter - V[i]);
                 float maxW = std::max(wPrev, wCur);
-
-                if (turn > 0.f) { // Convex corner
-                    if (miterLen > MITER_LIMIT * maxW) {
-                        pts.push_back(V[i] - edgeNormals[prev] * wPrev * orientation);
-                        pts.push_back(V[i] - edgeNormals[i] * wCur * orientation);
-                    } else {
-                        pts.push_back(miterOuter);
-                    }
-                } else { // Concave corner
-                    if (miterLen > MITER_LIMIT * maxW) {
-                        sf::Vector2f miterDir = math::normalize(miterOuter - V[i]);
-                        pts.push_back(V[i] + miterDir * (MITER_LIMIT * maxW));
-                    } else {
-                        pts.push_back(miterOuter);
-                    }
+                const float CONCAVE_LIMIT = 10.0f;
+                if (miterLen > CONCAVE_LIMIT * maxW) {
+                    sf::Vector2f miterDir = math::normalize(miterOuter - V[i]);
+                    pts.push_back(V[i] + miterDir * (CONCAVE_LIMIT * maxW));
+                } else {
+                    pts.push_back(miterOuter);
                 }
+            } else {
+                // Convex corner: pure miter, no limit — always sharp
+                pts.push_back(miterOuter);
             }
         }
         return pts;

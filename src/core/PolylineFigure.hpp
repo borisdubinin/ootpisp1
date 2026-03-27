@@ -22,9 +22,10 @@ public:
     std::string typeName() const override { return "polyline"; }
     std::unique_ptr<Figure> clone() const override;
 
-    /// Задать угол i-го ребра (в градусах) и скорректировать вершину i+1
-    void setEdgeAngle(int edgeIdx, float angleDeg);
-    float getEdgeAngle(int edgeIdx) const;
+    /// Get the interior angle at vertex i (degrees, 0..360)
+    float getVertexAngle(int vertIdx) const;
+    /// Set the interior angle at vertex i by rotating the outgoing edge
+    void setVertexAngle(int vertIdx, float angleDeg);
 
 public:
     PolylineFigure() = default; // для подклассов (базовых фигур)

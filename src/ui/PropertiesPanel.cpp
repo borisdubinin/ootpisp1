@@ -296,14 +296,7 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport, std::
             selectedFigure->edges[i].width = width;
           }
 
-          if (auto pf = dynamic_cast<core::PolylineFigure*>(selectedFigure)) {
-              if (pf->getVerticesMutable().size() > i + 1) { 
-                  float angle = pf->getEdgeAngle(i);
-                  if (ImGui::DragFloat("Angle", &angle, 1.f, -360.f, 360.f)) {
-                      pf->setEdgeAngle(i, angle);
-                  }
-              }
-          }
+          (void)0; // vertex angles shown in dedicated section below
 
           float eCol[4] = {selectedFigure->edges[i].color.r / 255.f,
                            selectedFigure->edges[i].color.g / 255.f,
@@ -341,6 +334,75 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport, std::
       ImGui::TreePop();
     }
     ImGui::Spacing();
+  }
+
+  // 6b. Vertex Angles (only for PolylineFigure)
+  if (auto* pf = dynamic_cast<core::PolylineFigure*>(selectedFigure)) {
+      int vn = static_cast<int>(pf->getVertices().size());
+      if (vn >= 3) {
+          ImGui::Separator();
+          if (ImGui::TreeNodeEx("Vertex Angles", ImGuiTreeNodeFlags_DefaultOpen)) {
+              auto& lockedAng  = pf->lockedAngles;
+              auto& lockedAngV = pf->lockedAngleValues;
+              // Initialize or reset if sizes changed or values are stale (> 360 means old formula)
+              bool needsReset = ((int)lockedAng.size() != vn);
+              if (!needsReset) {
+                  for (float v : lockedAngV) {
+                      if (v < 0.f || v > 360.f) { needsReset = true; break; }
+                  }
+              }
+              if (needsReset) {
+                  lockedAng.assign(vn, false);
+                  lockedAngV.resize(vn, 0.f);
+                  for (int i = 0; i < vn; ++i)
+                      lockedAngV[i] = pf->getVertexAngle(i);
+              }
+              for (int i = 0; i < vn; ++i) {
+                  ImGui::PushID(static_cast<int>(5000 + i));
+                  bool isLocked = lockedAng[i];
+                  if (ImGui::Checkbox("##alock", &isLocked)) {
+                      lockedAng[i] = isLocked;
+                      if (isLocked) lockedAngV[i] = pf->getVertexAngle(i);
+                  }
+                  if (ImGui::IsItemHovered()) ImGui::SetTooltip("Lock vertex angle");
+                  ImGui::SameLine();
+                  ImGui::Text("V%d:", i);
+                  ImGui::SameLine();
+
+                  if (isLocked) {
+                      ImGui::SetNextItemWidth(-1.f);
+                      ImGui::InputFloat("##va", &lockedAngV[i], 0.f, 0.f, "%.1f deg");
+                  } else {
+                      float angle = pf->getVertexAngle(i);
+                      ImGui::SetNextItemWidth(-1.f);
+                      if (ImGui::DragFloat("##va", &angle, 0.5f, 1.f, 359.f, "%.1f\xc2\xb0")) {
+                          pf->setVertexAngle(i, angle);
+                      }
+                  }
+                  ImGui::PopID();
+              }
+              // One Apply button for all locked angles
+              bool anyLocked = false;
+              for (bool b : lockedAng) if (b) { anyLocked = true; break; }
+              if (anyLocked) {
+                  if (ImGui::Button("Apply Locked Angles", ImVec2(-1.f, 0.f))) {
+                      for (int i = 0; i < vn; ++i) {
+                          if (lockedAngV[i] < 1.f)   lockedAngV[i] = 1.f;
+                          if (lockedAngV[i] > 359.f) lockedAngV[i] = 359.f;
+                      }
+                      // Run many iterations so all locked angles converge simultaneously
+                      for (int iter = 0; iter < 100; ++iter) {
+                          for (int i = 0; i < vn; ++i) {
+                              if (!lockedAng[i]) continue;
+                              pf->setVertexAngle(i, lockedAngV[i]);
+                          }
+                      }
+                  }
+              }
+              ImGui::TreePop();
+          }
+          ImGui::Spacing();
+      }
   }
 
   // 5. Bounding Box (Read only)
