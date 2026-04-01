@@ -96,6 +96,9 @@ int main() {
 
   int selectedCustomToolId = -1;
   std::vector<sf::Vector2f> currentPolylineVertices;
+  float polylineStartInput[2] = {0.f, 0.f};
+  float polylineSegmentLengthInput = 100.f;
+  float polylineSegmentAngleInputDeg = 0.f;
   std::vector<core::Figure*> compoundSelection;
   std::vector<std::unique_ptr<core::Figure>> userRegistry;
 
@@ -167,6 +170,39 @@ int main() {
       }
     }
     return fig;
+  };
+
+  auto finishCurrentPolyline = [&]() {
+    if (currentPolylineVertices.size() < 2) {
+      return;
+    }
+    auto fig = std::make_unique<core::PolylineFigure>();
+    fig->fillColor = sf::Color(150, 150, 150, 200);
+    fig->figureName = "Polygon";
+    sf::Vector2f minP = currentPolylineVertices[0];
+    sf::Vector2f maxP = currentPolylineVertices[0];
+    for (auto &v : currentPolylineVertices) {
+      minP.x = std::min(minP.x, v.x);
+      minP.y = std::min(minP.y, v.y);
+      maxP.x = std::max(maxP.x, v.x);
+      maxP.y = std::max(maxP.y, v.y);
+    }
+    sf::Vector2f center = (minP + maxP) / 2.f;
+    fig->anchor = center;
+    std::vector<sf::Vector2f> localVerts;
+    for (auto &v : currentPolylineVertices) {
+      localVerts.push_back(v - center);
+    }
+    fig->setVertices(localVerts);
+    fig->edges.resize(localVerts.size());
+    for (auto &e : fig->edges) {
+      e.width = 2.f;
+      e.color = sf::Color::Black;
+    }
+    scene.setSelectedFigure(fig.get());
+    scene.addFigure(std::move(fig));
+    currentPolylineVertices.clear();
+    currentTool = ui::Tool::Select;
   };
 
   // Add initial colored figures
@@ -307,28 +343,7 @@ int main() {
             panStartOrigin = viewport.worldOrigin;
           } else if (event.mouseButton.button == sf::Mouse::Right) {
             if (currentTool == ui::Tool::Polyline && currentPolylineVertices.size() > 1) {
-                // Finish Polyline
-                auto fig = std::make_unique<core::PolylineFigure>();
-                fig->fillColor = sf::Color(150, 150, 150, 100);
-                fig->figureName = "Custom Polyline";
-                sf::Vector2f minP = currentPolylineVertices[0], maxP = currentPolylineVertices[0];
-                for(auto& v : currentPolylineVertices) {
-                    minP.x = std::min(minP.x, v.x); minP.y = std::min(minP.y, v.y);
-                    maxP.x = std::max(maxP.x, v.x); maxP.y = std::max(maxP.y, v.y);
-                }
-                sf::Vector2f center = (minP + maxP) / 2.f;
-                fig->anchor = center;
-                std::vector<sf::Vector2f> localVerts;
-                for (auto& v : currentPolylineVertices) {
-                    localVerts.push_back(v - center);
-                }
-                fig->setVertices(localVerts);
-                fig->edges.resize(localVerts.size());
-                for (auto& e : fig->edges) { e.width = 2.f; e.color = sf::Color::Black; }
-                
-                scene.addFigure(std::move(fig));
-                currentPolylineVertices.clear();
-                currentTool = ui::Tool::Select;
+                finishCurrentPolyline();
             } else {
                 sf::Vector2f mousePosScreen(event.mouseButton.x,
                                             event.mouseButton.y);
@@ -542,29 +557,7 @@ int main() {
                        float dist = std::hypot(snapPos.x - currentPolylineVertices.front().x,
                                                snapPos.y - currentPolylineVertices.front().y);
                        if (dist < 10.f / viewport.zoom || doubleClicked) {
-                           // Finish Polyline
-                           auto fig = std::make_unique<core::PolylineFigure>();
-                           fig->fillColor = sf::Color(150, 150, 150, 200);
-                           fig->figureName = "Polygon";
-                           sf::Vector2f minP = currentPolylineVertices[0], maxP = currentPolylineVertices[0];
-                           for(auto& v : currentPolylineVertices) {
-                               minP.x = std::min(minP.x, v.x); minP.y = std::min(minP.y, v.y);
-                               maxP.x = std::max(maxP.x, v.x); maxP.y = std::max(maxP.y, v.y);
-                           }
-                           sf::Vector2f center = (minP + maxP) / 2.f;
-                           fig->anchor = center;
-                           std::vector<sf::Vector2f> localVerts;
-                           for (auto& v : currentPolylineVertices) {
-                               localVerts.push_back(v - center);
-                           }
-                           fig->setVertices(localVerts);
-                           fig->edges.resize(localVerts.size());
-                           for (auto& e : fig->edges) { e.width = 2.f; e.color = sf::Color::Black; }
-                           
-                           scene.setSelectedFigure(fig.get());
-                           scene.addFigure(std::move(fig));
-                           currentPolylineVertices.clear();
-                           currentTool = ui::Tool::Select;
+                           finishCurrentPolyline();
                            continue;
                        }
                    }
@@ -1035,6 +1028,58 @@ int main() {
 
     if (currentTool != ui::Tool::Polyline) {
         currentPolylineVertices.clear();
+    }
+
+    if (currentTool == ui::Tool::Polyline) {
+        ImGui::SetNextWindowPos(ImVec2(window.getSize().x - 320, 60), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Polyline Input", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Text("Mode: click points or type values");
+        ImGui::Separator();
+        ImGui::Text("Vertices: %zu", currentPolylineVertices.size());
+
+        if (currentPolylineVertices.empty()) {
+            ImGui::InputFloat2("Start X,Y", polylineStartInput);
+            if (ImGui::Button("Set start")) {
+                currentPolylineVertices.push_back(
+                    sf::Vector2f(polylineStartInput[0], polylineStartInput[1]));
+            }
+            ImGui::TextDisabled("Or left-click to place start point.");
+        } else {
+            sf::Vector2f last = currentPolylineVertices.back();
+            ImGui::Text("Last point: (%.1f, %.1f)", last.x, last.y);
+            ImGui::InputFloat("Length", &polylineSegmentLengthInput, 1.f, 10.f, "%.3f");
+            ImGui::InputFloat("Angle (deg)", &polylineSegmentAngleInputDeg, 1.f, 15.f, "%.3f");
+            if (ImGui::Button("Add segment")) {
+                if (polylineSegmentLengthInput > 0.f) {
+                    float angleRad = polylineSegmentAngleInputDeg * core::math::PI / 180.f;
+                    sf::Vector2f nextPoint(
+                        last.x + polylineSegmentLengthInput * std::cos(angleRad),
+                        last.y + polylineSegmentLengthInput * std::sin(angleRad));
+                    currentPolylineVertices.push_back(nextPoint);
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Undo point") && !currentPolylineVertices.empty()) {
+                currentPolylineVertices.pop_back();
+            }
+        }
+
+        bool canFinishPolyline = currentPolylineVertices.size() > 1;
+        if (!canFinishPolyline) {
+            ImGui::BeginDisabled();
+        }
+        if (ImGui::Button("Finish")) {
+            finishCurrentPolyline();
+        }
+        if (!canFinishPolyline) {
+            ImGui::EndDisabled();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            currentPolylineVertices.clear();
+            currentTool = ui::Tool::Select;
+        }
+        ImGui::End();
     }
 
     if (fitRequested && scene.figureCount() > 0) {
