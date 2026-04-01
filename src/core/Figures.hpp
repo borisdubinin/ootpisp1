@@ -68,13 +68,13 @@ public:
     
     sf::FloatRect getBoundingBox() const;
     sf::FloatRect getLocalBoundingBox() const;
-    bool contains(sf::Vector2f point) const;
 
     float getRadiusX() const { return m_radiusX; }
     float getRadiusY() const { return m_radiusY; }
-    void setRadius(float rx, float ry) { m_radiusX = rx; m_radiusY = ry; }
+    void setRadius(float rx, float ry);
     
 private:
+    void updateVertices();
     float m_radiusX, m_radiusY;
 };
 

@@ -231,6 +231,22 @@ Circle::Circle(float radiusX, float radiusY) : m_radiusX(radiusX), m_radiusY(rad
     figureName = "Circle";
     // Circle uses one virtual edge entry for outline style.
     edges.resize(1);
+    updateVertices();
+}
+
+void Circle::updateVertices() {
+    const int detail = 64;
+    m_vertices.clear();
+    for (int i = 0; i < detail; ++i) {
+        float angle = 2.f * math::PI * i / static_cast<float>(detail);
+        m_vertices.push_back({ m_radiusX * std::cos(angle), m_radiusY * std::sin(angle) });
+    }
+}
+
+void Circle::setRadius(float rx, float ry) {
+    m_radiusX = rx;
+    m_radiusY = ry;
+    updateVertices();
 }
 
 std::unique_ptr<Figure> Circle::clone() const {
@@ -244,81 +260,19 @@ std::unique_ptr<Figure> Circle::clone() const {
     return copy;
 }
 
+// Note: we let Figure::draw handle the rendering of polygons.
+// If special optimized circle drawing is needed, it can be re-enabled here.
+
+void Circle::draw(sf::RenderTarget& target) const {
+    PolylineFigure::draw(target);
+}
+
 sf::FloatRect Circle::getLocalBoundingBox() const {
-    float stroke = edges.empty() ? 0.f : edges[0].width;
-    float rx = m_radiusX + stroke;
-    float ry = m_radiusY + stroke;
-    return sf::FloatRect(-rx, -ry, rx * 2.f, ry * 2.f);
+    return Figure::getLocalBoundingBox();
 }
 
 sf::FloatRect Circle::getBoundingBox() const {
-    sf::Vector2f absAnchor = getAbsoluteAnchor();
-    sf::Vector2f absScale = getAbsoluteScale();
-    float rotRad = getAbsoluteRotation() * math::DEG_TO_RAD;
-    
-    float stroke = edges.empty() ? 0.f : edges[0].width;
-    
-    
-    float a = m_radiusX * std::abs(absScale.x) + stroke;
-    float b = m_radiusY * std::abs(absScale.y) + stroke;
-    float cosPhi = std::cos(rotRad);
-    float sinPhi = std::sin(rotRad);
-    
-    float halfWidth = std::sqrt(a*a*cosPhi*cosPhi + b*b*sinPhi*sinPhi);
-    float halfHeight = std::sqrt(a*a*sinPhi*sinPhi + b*b*cosPhi*cosPhi);
-    
-    return sf::FloatRect(absAnchor.x - halfWidth, absAnchor.y - halfHeight, halfWidth * 2.f, halfHeight * 2.f);
-}
-
-bool Circle::contains(sf::Vector2f point) const {
-    sf::Vector2f absAnchor = getAbsoluteAnchor();
-    sf::Vector2f absScale = getAbsoluteScale();
-    float rotRad = getAbsoluteRotation() * math::DEG_TO_RAD;
-    
-    sf::Vector2f relPoint = point - absAnchor;
-    
-    sf::Vector2f localPoint;
-    localPoint.x = relPoint.x * std::cos(-rotRad) - relPoint.y * std::sin(-rotRad);
-    localPoint.y = relPoint.x * std::sin(-rotRad) + relPoint.y * std::cos(-rotRad);
-    
-    // Scale the radii
-    float stroke = edges.empty() ? 0.f : edges[0].width;
-    float a = m_radiusX * std::abs(absScale.x) + stroke / 2.f;
-    float b = m_radiusY * std::abs(absScale.y) + stroke / 2.f;
-    
-    if (a < 1e-6f || b < 1e-6f) return false;
-    
-    float normX = localPoint.x / a;
-    float normY = localPoint.y / b;
-    return (normX * normX + normY * normY) <= 1.0f;
-}
-
-
-void Circle::draw(sf::RenderTarget& target) const {
-    sf::CircleShape shape(1.f);
-    shape.setPointCount(100); 
-    
-    sf::Vector2f absAnchor = getAbsoluteAnchor();
-    shape.setPosition(absAnchor);
-    shape.setOrigin({1.f, 1.f});
-    shape.setRotation(getAbsoluteRotation());
-    
-    sf::Vector2f absScale = getAbsoluteScale();
-    shape.setScale({absScale.x * m_radiusX, absScale.y * m_radiusY});
-    
-    shape.setFillColor(fillColor);
-    
-    if (!edges.empty() && edges[0].width > 0.001f) {
-        shape.setOutlineColor(edges[0].color);
-        // Inverse scale the outline thickness so it remains uniform despite the shape's scale
-        float avgScale = (std::abs(absScale.x * m_radiusX) + std::abs(absScale.y * m_radiusY)) / 2.f;
-        shape.setOutlineThickness(edges[0].width / avgScale);
-    } else {
-        shape.setOutlineThickness(0.f);
-    }
-    
-    target.draw(shape);
-    
+    return Figure::getBoundingBox();
 }
 
 
