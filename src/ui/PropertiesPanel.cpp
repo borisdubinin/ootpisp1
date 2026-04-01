@@ -2,6 +2,7 @@
 #include "core/Scene.hpp"
 #include "core/CompositeFigure.hpp"
 #include "core/PolylineFigure.hpp"
+#include "core/Figures.hpp"
 #include "core/MathUtils.hpp"
 #include <algorithm>
 #include <imgui.h>
@@ -260,7 +261,22 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport, std::
         for (size_t i = 0; i < selectedFigure->edges.size(); ++i) {
           ImGui::PushID(static_cast<int>(i));
 
-          if (hasLengths && i < displayLengths.size()) {
+          if (auto circ = dynamic_cast<core::Circle*>(selectedFigure)) {
+            // Circle has special radius properties instead of side lengths
+            ImGui::Text("Circle Setup");
+            float rx = circ->getRadiusX();
+            float ry = circ->getRadiusY();
+            bool rChanged = false;
+            ImGui::SetNextItemWidth(-1.f);
+            if (ImGui::InputFloat("Radius X", &rx, 1.f, 10.f, "%.1f", ImGuiInputTextFlags_EnterReturnsTrue)) rChanged = true;
+            ImGui::SetNextItemWidth(-1.f);
+            if (ImGui::InputFloat("Radius Y", &ry, 1.f, 10.f, "%.1f", ImGuiInputTextFlags_EnterReturnsTrue)) rChanged = true;
+            if (rChanged) {
+               if (rx < 1.f) rx = 1.f;
+               if (ry < 1.f) ry = 1.f;
+               circ->setRadius(rx, ry);
+            }
+          } else if (hasLengths && i < displayLengths.size()) {
             bool isLocked = lockedSides[i];
             if (ImGui::Checkbox("##lock", &isLocked)) {
               lockedSides[i] = isLocked;
@@ -274,7 +290,9 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport, std::
             ImGui::SameLine();
           }
 
-          ImGui::Text("%s", selectedFigure->getSideName(static_cast<int>(i)));
+          if (!dynamic_cast<core::Circle*>(selectedFigure)) {
+              ImGui::Text("%s", selectedFigure->getSideName(static_cast<int>(i)));
+          }
 
           if (hasLengths && i < displayLengths.size()) {
             ImGui::SetNextItemWidth(-1.f);
@@ -339,7 +357,7 @@ bool PropertiesPanel::render(core::Scene &scene, core::Viewport &viewport, std::
   // 6b. Vertex Angles (only for PolylineFigure)
   if (auto* pf = dynamic_cast<core::PolylineFigure*>(selectedFigure)) {
       int vn = static_cast<int>(pf->getVertices().size());
-      if (vn >= 3) {
+      if (!dynamic_cast<core::Circle*>(selectedFigure) && vn >= 3) {
           ImGui::Separator();
           if (ImGui::TreeNodeEx("Vertex Angles", ImGuiTreeNodeFlags_DefaultOpen)) {
               auto& lockedAng  = pf->lockedAngles;

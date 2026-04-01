@@ -229,17 +229,8 @@ std::unique_ptr<Figure> Trapezoid::clone() const {
 // ─── Circle ──────────────────────────────────────────────────────────────────
 Circle::Circle(float radiusX, float radiusY) : m_radiusX(radiusX), m_radiusY(radiusY) {
     figureName = "Circle";
-    int segments = 60;
     edges.resize(1); // Treated as single uniform edge mostly
-    m_vertices.resize(segments);
-    for (int i = 0; i < segments; ++i) {
-        float angle = i * 2.f * math::PI / segments;
-        m_vertices[i] = {radiusX * std::cos(angle), radiusY * std::sin(angle)};
-    }
-}
-
-const char* Circle::getSideName(int idx) const {
-    return "Side";
+    // m_vertices is left empty because Circle is mathematically an ellipse, not a polygon
 }
 
 std::unique_ptr<Figure> Circle::clone() const {
@@ -250,10 +241,96 @@ std::unique_ptr<Figure> Circle::clone() const {
     copy->rotationAngle = rotationAngle;
     copy->scale = scale;
     copy->edges = edges;
-    copy->lockedSides = lockedSides;
-    copy->lockedLengths = lockedLengths;
-    copy->m_vertices = m_vertices;
     return copy;
 }
+
+sf::FloatRect Circle::getLocalBoundingBox() const {
+    float stroke = edges.empty() ? 0.f : edges[0].width;
+    float rx = m_radiusX + stroke;
+    float ry = m_radiusY + stroke;
+    return sf::FloatRect(-rx, -ry, rx * 2.f, ry * 2.f);
+}
+
+sf::FloatRect Circle::getBoundingBox() const {
+    sf::Vector2f absAnchor = getAbsoluteAnchor();
+    sf::Vector2f absScale = getAbsoluteScale();
+    float rotRad = getAbsoluteRotation() * math::DEG_TO_RAD;
+    
+    float stroke = edges.empty() ? 0.f : edges[0].width;
+    
+    // Exact bounding box of arbitrary rotated ellipse
+    // x(t) = a*cos(t)*cos(phi) - b*sin(t)*sin(phi)
+    // y(t) = a*cos(t)*sin(phi) + b*sin(t)*cos(phi)
+    // Max extents:
+    // width = 2 * sqrt((a*cos(phi))^2 + (b*sin(phi))^2)
+    // height = 2 * sqrt((a*sin(phi))^2 + (b*cos(phi))^2)
+    
+    float a = m_radiusX * std::abs(absScale.x) + stroke;
+    float b = m_radiusY * std::abs(absScale.y) + stroke;
+    float cosPhi = std::cos(rotRad);
+    float sinPhi = std::sin(rotRad);
+    
+    float halfWidth = std::sqrt(a*a*cosPhi*cosPhi + b*b*sinPhi*sinPhi);
+    float halfHeight = std::sqrt(a*a*sinPhi*sinPhi + b*b*cosPhi*cosPhi);
+    
+    return sf::FloatRect(absAnchor.x - halfWidth, absAnchor.y - halfHeight, halfWidth * 2.f, halfHeight * 2.f);
+}
+
+bool Circle::contains(sf::Vector2f point) const {
+    sf::Vector2f absAnchor = getAbsoluteAnchor();
+    sf::Vector2f absScale = getAbsoluteScale();
+    float rotRad = getAbsoluteRotation() * math::DEG_TO_RAD;
+    
+    // Translate point to ellipse center
+    sf::Vector2f relPoint = point - absAnchor;
+    
+    // Un-rotate the point
+    sf::Vector2f localPoint;
+    localPoint.x = relPoint.x * std::cos(-rotRad) - relPoint.y * std::sin(-rotRad);
+    localPoint.y = relPoint.x * std::sin(-rotRad) + relPoint.y * std::cos(-rotRad);
+    
+    // Scale the radii
+    float stroke = edges.empty() ? 0.f : edges[0].width;
+    float a = m_radiusX * std::abs(absScale.x) + stroke / 2.f;
+    float b = m_radiusY * std::abs(absScale.y) + stroke / 2.f;
+    
+    if (a < 1e-6f || b < 1e-6f) return false;
+    
+    // Check ellipse equation: (x/a)^2 + (y/b)^2 <= 1
+    float normX = localPoint.x / a;
+    float normY = localPoint.y / b;
+    return (normX * normX + normY * normY) <= 1.0f;
+}
+
+
+void Circle::draw(sf::RenderTarget& target) const {
+    sf::CircleShape shape(1.f); // Base radius 1, scaled up
+    shape.setPointCount(100); // High quality smooth circle
+    
+    sf::Vector2f absAnchor = getAbsoluteAnchor();
+    shape.setPosition(absAnchor);
+    shape.setOrigin({1.f, 1.f});
+    shape.setRotation(getAbsoluteRotation());
+    
+    sf::Vector2f absScale = getAbsoluteScale();
+    shape.setScale({absScale.x * m_radiusX, absScale.y * m_radiusY});
+    
+    shape.setFillColor(fillColor);
+    
+    if (!edges.empty() && edges[0].width > 0.001f) {
+        shape.setOutlineColor(edges[0].color);
+        // Inverse scale the outline thickness so it remains uniform despite the shape's scale
+        float avgScale = (std::abs(absScale.x * m_radiusX) + std::abs(absScale.y * m_radiusY)) / 2.f;
+        shape.setOutlineThickness(edges[0].width / avgScale);
+    } else {
+        shape.setOutlineThickness(0.f);
+    }
+    
+    target.draw(shape);
+    
+    // Call parent draw if we need to draw selection points/UI (if applicable)
+    // Figure::draw(target); // Only if we want the default selection overlay, otherwise we handle UI separately
+}
+
 
 } // namespace core

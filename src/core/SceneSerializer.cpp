@@ -34,6 +34,9 @@ bool SceneSerializer::load(Scene& scene, const std::string& filepath) {
 static void writePolylineFields(std::ostream& out, const PolylineFigure* fig, int indent);
 static void readPolylineFields(std::istream& in, PolylineFigure* fig);
 
+static void writeCircleFields(std::ostream& out, const Circle* fig, int indent);
+static void readCircleFields(std::istream& in, Circle* fig);
+
 void SceneSerializer::writeFigure(std::ostream& out, const Figure* fig, int indent) {
     std::string pad(indent, ' ');
     if (auto cf = dynamic_cast<const CompositeFigure*>(fig)) {
@@ -49,6 +52,10 @@ void SceneSerializer::writeFigure(std::ostream& out, const Figure* fig, int inde
             writeFigure(out, cf->children[i].figure.get(), indent + 4);
             out << pad << "  child_end\n";
         }
+        out << pad << "end\n";
+    } else if (auto circ = dynamic_cast<const Circle*>(fig)) {
+        out << pad << "figure " << circ->typeName() << "\n";
+        writeCircleFields(out, circ, indent);
         out << pad << "end\n";
     } else if (auto pf = dynamic_cast<const PolylineFigure*>(fig)) {
         out << pad << "figure " << pf->typeName() << "\n";
@@ -135,6 +142,8 @@ std::unique_ptr<Figure> SceneSerializer::readFigure(std::istream& in) {
     
     if (auto cf = dynamic_cast<CompositeFigure*>(fig.get())) {
         readCommonFields(in, cf);
+    } else if (auto circ = dynamic_cast<Circle*>(fig.get())) {
+        readCircleFields(in, circ);
     } else if (auto pf = dynamic_cast<PolylineFigure*>(fig.get())) {
         readPolylineFields(in, pf);
     }
@@ -254,6 +263,55 @@ void SceneSerializer::readCommonFields(std::istream& in, CompositeFigure* fig) {
             }
         }
     }
+}
+
+static void writeCircleFields(std::ostream& out, const Circle* fig, int indent) {
+    std::string pad(indent, ' ');
+    out << pad << "name " << fig->figureName << "\n";
+    out << pad << "anchor " << fig->anchor.x << " " << fig->anchor.y << "\n";
+    out << pad << "parent_origin " << fig->parentOrigin.x << " " << fig->parentOrigin.y << "\n";
+    out << pad << "rotation " << fig->rotationAngle << "\n";
+    out << pad << "scale " << fig->scale.x << " " << fig->scale.y << "\n";
+    out << pad << "fill " << (int)fig->fillColor.r << " " << (int)fig->fillColor.g << " " 
+        << (int)fig->fillColor.b << " " << (int)fig->fillColor.a << "\n";
+    if (!fig->edges.empty()) {
+        out << pad << "edge_width " << fig->edges[0].width << "\n";
+        out << pad << "edge_color " << (int)fig->edges[0].color.r << " " << (int)fig->edges[0].color.g << " "
+            << (int)fig->edges[0].color.b << " " << (int)fig->edges[0].color.a << "\n";
+    }
+    out << pad << "radius " << fig->getRadiusX() << " " << fig->getRadiusY() << "\n";
+}
+
+static void readCircleFields(std::istream& in, Circle* fig) {
+    std::string prop;
+    float rx = 50.f, ry = 50.f;
+    fig->edges.resize(1); // Circle always has 1 virtual edge for thickness
+    while (in >> prop) {
+        if (prop == "end") break;
+        else if (prop == "name") {
+            in >> std::ws;
+            std::getline(in, fig->figureName);
+        }
+        else if (prop == "anchor") in >> fig->anchor.x >> fig->anchor.y;
+        else if (prop == "parent_origin") in >> fig->parentOrigin.x >> fig->parentOrigin.y;
+        else if (prop == "rotation") in >> fig->rotationAngle;
+        else if (prop == "scale") in >> fig->scale.x >> fig->scale.y;
+        else if (prop == "fill") {
+            int r, g, b, a; in >> r >> g >> b >> a;
+            fig->fillColor = sf::Color(r, g, b, a);
+        } else if (prop == "edge_width") {
+            in >> fig->edges[0].width;
+        } else if (prop == "edge_color") {
+            int r, g, b, a; in >> r >> g >> b >> a;
+            fig->edges[0].color = sf::Color(r, g, b, a);
+        } else if (prop == "radius") {
+            in >> rx >> ry;
+        } else if (prop == "edges" || prop == "vertices" || prop == "vertices_base") {
+            // Legacy polygon fields, ignore them for new circles
+            std::string line; std::getline(in, line); 
+        }
+    }
+    fig->setRadius(rx, ry);
 }
 
 } // namespace core

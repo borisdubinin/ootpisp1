@@ -146,8 +146,9 @@ int main() {
       fig->scale = sf::Vector2f(width / 100.f, height / 100.f);
       fig->applyScale();
     } else if (tool == ui::Tool::Circle) {
-      fig = std::make_unique<core::Circle>(50.f, 50.f);
-      fig->scale = sf::Vector2f(width / 100.f, height / 100.f);
+      // Circle constructor takes radiusX, radiusY so divide by 2
+      fig = std::make_unique<core::Circle>(width / 2.f, height / 2.f);
+      fig->scale = sf::Vector2f(1.f, 1.f);
       fig->applyScale();
     } else if (tool == ui::Tool::Custom && selectedCustomToolId >= 0 && selectedCustomToolId < userRegistry.size()) {
         fig = userRegistry[selectedCustomToolId]->clone();
