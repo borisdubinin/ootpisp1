@@ -6,8 +6,6 @@
 
 namespace core::geometry {
 
-    // Generates a VertexArray for a polyline with specified thickness and miter joins.
-    // If closed is true, it connects the last vertex back to the first.
     inline sf::VertexArray generateThickPolyline(const std::vector<sf::Vector2f>& points, 
                                                  const std::vector<sf::Color>& colors,
                                                  const std::vector<float>& thicknesses,
@@ -52,7 +50,6 @@ namespace core::geometry {
             float thickness = thicknesses[i % thicknesses.size()];
             float halfThick = thickness / 2.0f;
 
-            // Cap miter length to prevent extreme spikes on sharp angles
             const float miterLimit = 3.f * halfThick;
             if (math::length(miter1 * halfThick) > miterLimit) {
                 miter1 = n2;
@@ -69,7 +66,6 @@ namespace core::geometry {
             sf::Color col = colors[i % colors.size()];
 
             if (i > 0) {
-                // Degenerate triangle to stitch segments
                 varray.append(sf::Vertex(varray[varray.getVertexCount() - 1].position, col));
                 varray.append(sf::Vertex(v1, col));
             }

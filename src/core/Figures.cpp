@@ -4,7 +4,7 @@
 
 namespace core {
 
-// ─── Rectangle ───────────────────────────────────────────────────────────────
+// ─── Rectangle 
 Rectangle::Rectangle(float width, float height) : m_width(width), m_height(height) {
     figureName = "Rectangle";
     m_vertices = {
@@ -49,7 +49,7 @@ std::unique_ptr<Figure> Rectangle::clone() const {
     return copy;
 }
 
-// ─── Triangle ────────────────────────────────────────────────────────────────
+// ─── Triangle 
 Triangle::Triangle(float base, float height) : m_base(base), m_height(height) {
     figureName = "Triangle";
     m_vertices = {
@@ -102,7 +102,7 @@ std::unique_ptr<Figure> Triangle::clone() const {
     return copy;
 }
 
-// ─── Hexagon ─────────────────────────────────────────────────────────────────
+// ─── Hexagon 
 Hexagon::Hexagon(float width, float height) : m_width(width), m_height(height) {
     figureName = "Hexagon";
     edges.resize(6);
@@ -131,7 +131,7 @@ std::unique_ptr<Figure> Hexagon::clone() const {
     return copy;
 }
 
-// ─── Rhombus ─────────────────────────────────────────────────────────────────
+// ─── Rhombus 
 Rhombus::Rhombus(float width, float height) : m_width(width), m_height(height) {
     figureName = "Rhombus";
     edges.resize(4);
@@ -162,7 +162,7 @@ std::unique_ptr<Figure> Rhombus::clone() const {
     return copy;
 }
 
-// ─── Trapezoid ───────────────────────────────────────────────────────────────
+// ─── Trapezoid 
 Trapezoid::Trapezoid(float topWidth, float bottomWidth, float height)
     : m_topWidth(topWidth), m_bottomWidth(bottomWidth), m_height(height) {
     figureName = "Trapezoid";
@@ -226,11 +226,9 @@ std::unique_ptr<Figure> Trapezoid::clone() const {
     return copy;
 }
 
-// ─── Circle ──────────────────────────────────────────────────────────────────
+// ─── Circle 
 Circle::Circle(float radiusX, float radiusY) : m_radiusX(radiusX), m_radiusY(radiusY) {
     figureName = "Circle";
-    edges.resize(1); // Treated as single uniform edge mostly
-    // m_vertices is left empty because Circle is mathematically an ellipse, not a polygon
 }
 
 std::unique_ptr<Figure> Circle::clone() const {
@@ -258,12 +256,6 @@ sf::FloatRect Circle::getBoundingBox() const {
     
     float stroke = edges.empty() ? 0.f : edges[0].width;
     
-    // Exact bounding box of arbitrary rotated ellipse
-    // x(t) = a*cos(t)*cos(phi) - b*sin(t)*sin(phi)
-    // y(t) = a*cos(t)*sin(phi) + b*sin(t)*cos(phi)
-    // Max extents:
-    // width = 2 * sqrt((a*cos(phi))^2 + (b*sin(phi))^2)
-    // height = 2 * sqrt((a*sin(phi))^2 + (b*cos(phi))^2)
     
     float a = m_radiusX * std::abs(absScale.x) + stroke;
     float b = m_radiusY * std::abs(absScale.y) + stroke;
@@ -281,10 +273,8 @@ bool Circle::contains(sf::Vector2f point) const {
     sf::Vector2f absScale = getAbsoluteScale();
     float rotRad = getAbsoluteRotation() * math::DEG_TO_RAD;
     
-    // Translate point to ellipse center
     sf::Vector2f relPoint = point - absAnchor;
     
-    // Un-rotate the point
     sf::Vector2f localPoint;
     localPoint.x = relPoint.x * std::cos(-rotRad) - relPoint.y * std::sin(-rotRad);
     localPoint.y = relPoint.x * std::sin(-rotRad) + relPoint.y * std::cos(-rotRad);
@@ -296,7 +286,6 @@ bool Circle::contains(sf::Vector2f point) const {
     
     if (a < 1e-6f || b < 1e-6f) return false;
     
-    // Check ellipse equation: (x/a)^2 + (y/b)^2 <= 1
     float normX = localPoint.x / a;
     float normY = localPoint.y / b;
     return (normX * normX + normY * normY) <= 1.0f;
@@ -304,8 +293,8 @@ bool Circle::contains(sf::Vector2f point) const {
 
 
 void Circle::draw(sf::RenderTarget& target) const {
-    sf::CircleShape shape(1.f); // Base radius 1, scaled up
-    shape.setPointCount(100); // High quality smooth circle
+    sf::CircleShape shape(1.f);
+    shape.setPointCount(100); 
     
     sf::Vector2f absAnchor = getAbsoluteAnchor();
     shape.setPosition(absAnchor);
@@ -328,8 +317,6 @@ void Circle::draw(sf::RenderTarget& target) const {
     
     target.draw(shape);
     
-    // Call parent draw if we need to draw selection points/UI (if applicable)
-    // Figure::draw(target); // Only if we want the default selection overlay, otherwise we handle UI separately
 }
 
 

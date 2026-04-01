@@ -66,7 +66,6 @@ public:
     bool hasUniformEdge() const override { return true; }
     void draw(sf::RenderTarget& target) const override;
     
-    // Circle/Ellipse specific overrides since we don't use polygon vertices
     sf::FloatRect getBoundingBox() const;
     sf::FloatRect getLocalBoundingBox() const;
     bool contains(sf::Vector2f point) const;

@@ -45,7 +45,7 @@ std::unique_ptr<CompositeFigure> CompositeFigure::mergeFromScene(
     return compound;
 }
 
-// ─── Overrides ───────────────────────────────────────────────────────────────
+// ─── Overrides 
 
 void CompositeFigure::draw(sf::RenderTarget& target) const {
     if (!m_vertices.empty()) {
