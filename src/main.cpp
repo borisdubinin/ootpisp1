@@ -407,7 +407,7 @@ int main() {
 
               if (selFig) {
                 float markerScale = 1.f / viewport.zoom;
-                sf::Vector2f absAnchor = selFig->parentOrigin + selFig->anchor;
+                sf::Vector2f absAnchor = selFig->getAbsoluteAnchor();
                 float dist = std::hypot(mousePos.x - absAnchor.x,
                                         mousePos.y - absAnchor.y);
                 if (dist <= 10.f * markerScale) {
@@ -450,8 +450,7 @@ int main() {
                 scaleStartAnchor = selFig->anchor;
               } else if (hitRotationMarker && selFig) {
                 isRotating = true;
-                sf::Vector2f absoluteAnchor =
-                    selFig->parentOrigin + selFig->anchor;
+                sf::Vector2f absoluteAnchor = selFig->getAbsoluteAnchor();
                 rotationStartAngle = std::atan2(mousePos.y - absoluteAnchor.y,
                                                 mousePos.x - absoluteAnchor.x) *
                                      180.f / core::math::PI;
@@ -460,8 +459,7 @@ int main() {
                 draggingVertexIndex = hoveredVertex;
               } else if (hitAnchor && altPressed && selFig) {
                 isDraggingAnchor = true;
-                sf::Vector2f absoluteAnchor =
-                    selFig->parentOrigin + selFig->anchor;
+                sf::Vector2f absoluteAnchor = selFig->getAbsoluteAnchor();
                 dragOffset = mousePos - absoluteAnchor;
               } else {
                 core::Figure *hit = scene.hitTest(mousePos);
@@ -525,7 +523,7 @@ int main() {
                         if (selFig != hit)
                             isNodeEditMode = false;
                         isDragging = true;
-                        sf::Vector2f absoluteAnchor = hit->parentOrigin + hit->anchor;
+                        sf::Vector2f absoluteAnchor = hit->getAbsoluteAnchor();
                         dragOffset = mousePos - absoluteAnchor;
                     }
                 } else {
@@ -810,8 +808,7 @@ int main() {
                 scaleStartAnchor + sf::Vector2f(anchor_dx, anchor_dy);
           } else if (isRotating && scene.getSelectedFigure()) {
             sf::Vector2f absoluteAnchor =
-                scene.getSelectedFigure()->parentOrigin +
-                scene.getSelectedFigure()->anchor;
+                scene.getSelectedFigure()->getAbsoluteAnchor();
             float currentAngle = std::atan2(mousePos.y - absoluteAnchor.y,
                                             mousePos.x - absoluteAnchor.x) *
                                  180.f / core::math::PI;
@@ -844,17 +841,26 @@ int main() {
           } else if (isDraggingAnchor && scene.getSelectedFigure()) {
             sf::Vector2f mousePos = viewport.screenToWorld(
                 sf::Vector2f(event.mouseMove.x, event.mouseMove.y));
-            sf::Vector2f absoluteAnchor =
-                scene.getSelectedFigure()->parentOrigin +
-                scene.getSelectedFigure()->anchor;
             sf::Vector2f newAbsoluteAnchor = mousePos - dragOffset;
+            core::Figure* fig = scene.getSelectedFigure();
+
+            sf::Vector2f newLocalAnchor;
+            if (fig->parentFigure) {
+              // Convert absolute position to parent-local coordinates
+              sf::Vector2f parentAbsAnchor = fig->parentFigure->getAbsoluteAnchor();
+              sf::Vector2f delta = newAbsoluteAnchor - parentAbsAnchor;
+              float parentAbsRot = fig->parentFigure->getAbsoluteRotation();
+              sf::Vector2f unrotated = core::math::rotate(delta, -parentAbsRot * core::math::DEG_TO_RAD);
+              sf::Vector2f parentAbsScale = fig->parentFigure->getAbsoluteScale();
+              newLocalAnchor = {unrotated.x / parentAbsScale.x, unrotated.y / parentAbsScale.y};
+            } else {
+              newLocalAnchor = newAbsoluteAnchor - fig->parentOrigin;
+            }
 
             if (propertiesPanel.m_lockAnchor) {
-              scene.getSelectedFigure()->anchor =
-                  newAbsoluteAnchor - scene.getSelectedFigure()->parentOrigin;
+              fig->anchor = newLocalAnchor;
             } else {
-              scene.getSelectedFigure()->setAnchorKeepAbsolute(
-                  newAbsoluteAnchor - scene.getSelectedFigure()->parentOrigin);
+              fig->setAnchorKeepAbsolute(newLocalAnchor);
             }
           } else if ((isDraggingSubfigure || isDraggingSubfigurePending) && scene.getSelectedFigure()) {
             // Move subfigure in group-local coordinate space
@@ -878,7 +884,11 @@ int main() {
                 sf::Vector2f targetWorld = mousePos - dragOffset;
                 if (sub->parentFigure) {
                     sf::Vector2f parentAbs = sub->parentFigure->getAbsoluteAnchor();
-                    sub->anchor = targetWorld - parentAbs;
+                    sf::Vector2f delta = targetWorld - parentAbs;
+                    float parentAbsRot = sub->parentFigure->getAbsoluteRotation();
+                    sf::Vector2f unrotated = core::math::rotate(delta, -parentAbsRot * core::math::DEG_TO_RAD);
+                    sf::Vector2f parentAbsScale = sub->parentFigure->getAbsoluteScale();
+                    sub->anchor = {unrotated.x / parentAbsScale.x, unrotated.y / parentAbsScale.y};
                 } else {
                     sub->anchor = targetWorld - sub->parentOrigin;
                 }
@@ -1332,8 +1342,7 @@ int main() {
     if (scene.getSelectedFigure()) {
       float markerScale = 1.f / viewport.zoom;
       drawAnchorMarker(window,
-                       scene.getSelectedFigure()->parentOrigin +
-                           scene.getSelectedFigure()->anchor,
+                       scene.getSelectedFigure()->getAbsoluteAnchor(),
                        markerScale);
 
       sf::FloatRect localBounds =

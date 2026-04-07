@@ -402,11 +402,15 @@ bool CompositeFigure::deserialize(const std::string& prop, std::istream& in) {
         size_t childCount;
         in >> childCount;
         for (size_t i = 0; i < childCount; ++i) {
-            Child child;
-            child.figure = SceneSerializer::readFigure(in);
-            if (child.figure) {
-                child.figure->parentFigure = this;
-                children.push_back(std::move(child));
+            std::string token;
+            in >> token; 
+            if (token == "figure") {
+                Child child;
+                child.figure = SceneSerializer::readFigure(in);
+                if (child.figure) {
+                    child.figure->parentFigure = this;
+                    children.push_back(std::move(child));
+                }
             }
         }
         return true;
